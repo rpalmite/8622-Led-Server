@@ -34,4 +34,7 @@ https://www.coda-effects.com/2018/08/the-different-types-of-diodes.html
 https://www.circuitbread.com/tutorials/how-to-dim-an-led
 
 
+Great Wifi Resource
+-------------------
 
+https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html

@@ -1,5 +1,8 @@
+// THIS IS THE ARDUINO IDE VERSION
+
 #include <ESP8266WiFi.h>
 #include <vector>
+//#include <algorithm>
 
 const char* ssid = "sloughnet";
 const char* password = "homebase";
@@ -19,8 +22,10 @@ String header;
 // crawl
 // ant walk
 // christmas lights
-// 
 
+
+
+// TODO rename Pin
 class PinInfo {
 public:
   // Constructor // TODO rename pinNumber to just number // TODO should pin number and pin mode be uint8_t ???
@@ -117,30 +122,94 @@ private:
 class PinArray {
 public:
     
-    std::vector<PinInfo> pins;
+  std::vector<PinInfo> pins;
+  std::vector<int> states;
 
-    PinArray() {
-        
-    }
-
-    void addPin(const PinInfo& pin) {
-        pins.push_back(pin);
-    }
-
-    void step() {
+  PinArray() {
       
+  }
+
+  void addPin(const PinInfo& pin) {
+      pins.push_back(pin);
+      states.push_back(0);
+  }
+
+  int size() {
+    int sizeOfPinArray = pins.size();
+    return sizeOfPinArray;
+  }
+
+  PinInfo get(int position) {
+    if (position < size()) {
+        return pins[position];
+    }
+    // TODO handle the case where the position is out of bounds
+    // or return a default PinInfo object in such cases.
+    return PinInfo::create("", 0, 0, true);
+  }
+  
+  void push(const PinInfo& newPin) {
+    addPin(newPin);
+  }
+  //void applyEffect(RandomPinEffect pinEffect, int step) {
+      // method necessary ?????
+  //}
+
+  PinArray getPinsNear(int position, int numberOfPins, boolean loopAround) {
+    PinArray pinsNearPosition = PinArray();
+
+    for (int i=0; i<numberOfPins; i++) {
+      int positionOfPinToFetch = (position+i) % pins.size(); // TODO possible off by one error (might need to be size - 1)
+      PinInfo pinToFetech = pins[positionOfPinToFetch];
+      pinsNearPosition.addPin(pinToFetech);
     }
 
+    return pinsNearPosition;
+  }
+
+private:
+  int currentPosition = 0;
 };
 
 
+
+// TODO rename RandomPinEffect
+class RandomPinEffect {
+  public:
+    void doEffect(PinArray pins, int step) {
+      // TODO for safety later
+      // int randomNumber = min(RAND_MAX, pins.size());
+      int randomNumber = random(1, pins.size());
+      PinInfo randomPin = pins.get(randomNumber);
+      randomPin.turnOn();
+    }
+};
+
+// TODO rename RandomPinEffect
+class RainbowAntEffect {
+  int defaultEffectSize = 5;
+  public:
+    void doEffect(PinArray pins, int step) {
+      int effectSize = min(defaultEffectSize+1, pins.size()); // +1 for last pin to turn off
+      
+      if (effectSize < 1) {
+        return;
+      }
+
+      PinArray pinArray = pins.getPinsNear(step, effectSize, true);
+      pinArray.get(0).turnOff();
+      for (int i=1; i<effectSize; i++) {
+        pinArray.get(i).turnOn();
+      }
+    }
+};
 
 
 
 
 const int led14 = 14;  // D14?
 
-
+// TODO put this inside a 
 int getParameterValue(String queryString, String parameterName) {
   // Find the position of the parameter name in the query string
   int paramPos = queryString.indexOf(parameterName);
@@ -183,6 +252,8 @@ PinInfo pinArray[NUM_PINS] = {
   PinInfo("Pin16", 16, OUTPUT, true)
 };
 
+PinArray pins = PinArray();
+
 void setup() {
   Serial.begin(115200);
   //pinSetup();
@@ -198,7 +269,6 @@ void setup() {
 
   // led
   analogWrite(led14, 100);
-
 
   // Connect to WiFi
   Serial.print("Connecting to WiFi network");
@@ -217,14 +287,13 @@ void setup() {
   server.begin();
 
   // Initialize the PinInfo objects
-  // pinArray[0] = PinInfo::create("Pin1", 2, OUTPUT, true);
-  // pinArray[1] = PinInfo::create("Pin2", 3, INPUT, true);
-  // pinArray[2] = PinInfo::create("Pin3", 4, OUTPUT, true);
-  // pinArray[3] = PinInfo::create("Pin4", 5, INPUT, true);
-  // pinArray[4] = PinInfo::create("Pin12", 12, OUTPUT, true);
-  // pinArray[5] = PinInfo::create("Pin13", 13, OUTPUT, true);
-  // pinArray[6] = PinInfo::create("Pin16", 16, OUTPUT, true);
-  // pinArray[7] = PinInfo::create("Pin4", 5, OUTPUT, true);
+  pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
+  pins.push(PinInfo::create("Pin2", 4, OUTPUT, true));
+  pins.push(PinInfo::create("Pin3", 0, OUTPUT, true));
+  pins.push(PinInfo::create("Pin4", 2, OUTPUT, true));
+  pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
+  pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
+  pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
 }
 
 void loop() {
