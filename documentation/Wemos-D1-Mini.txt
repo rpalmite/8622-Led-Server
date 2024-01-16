@@ -1,0 +1,37 @@
+Wemos D1 Mini
+-------------
+
+Note that in Arduino IDE, you can refer to the digital IOs as D0, D1, D2, D3, D4, D5, D6, D7, D8, TX, and RX. Also, you may use the ESP8266 GPIO numbers to access the 11 GPIOs. These are:
+
+D0 – 16
+D1 – 5
+D2 – 4
+D3 – 0
+D4 – 2
+D5 – 14
+D6 – 12
+D7 – 13
+D8 – 15
+TX – 1
+RX – 3
+The analog input port is referred to as A0.
+
+For example, the following codes are equivalent:
+
+pinMode(D0, INPUT);
+pinMode(16, INPUT);
+
+
+RGB LEDs
+--------
+
+https://www.circuitbread.com/tutorials/how-rgb-leds-work-and-how-to-control-color
+
+https://www.amazon.com/EDGELEC-Flashing-Multicolor-Automatically-Resistors/dp/B077X9Z3FW?th=1
+
+https://www.coda-effects.com/2018/08/the-different-types-of-diodes.html
+
+https://www.circuitbread.com/tutorials/how-to-dim-an-led
+
+
+
