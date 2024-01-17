@@ -23,8 +23,6 @@ String header;
 // ant walk
 // christmas lights
 
-
-
 // TODO rename Pin
 class PinInfo {
 public:
@@ -90,6 +88,14 @@ public:
     isLow = true;
   }
 
+  void toggle() {
+    if (isOn()) {
+      turnOff();
+    } else {
+      turnOn();
+    }
+  }
+
   void setValue(int analogVal) {
     Serial.println("Pin " + pinName + "(gpio " + pinNumber + ") set to " + analogVal);
     analogWrite(pinNumber, analogVal);
@@ -151,10 +157,7 @@ public:
   void push(const PinInfo& newPin) {
     addPin(newPin);
   }
-  //void applyEffect(RandomPinEffect pinEffect, int step) {
-      // method necessary ?????
-  //}
-
+  
   PinArray getPinsNear(int position, int numberOfPins, boolean loopAround) {
     PinArray pinsNearPosition = PinArray();
 
