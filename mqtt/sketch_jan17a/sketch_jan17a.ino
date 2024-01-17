@@ -12,8 +12,9 @@ uMQTTBroker myBroker;
 /*
  * Your WiFi config here
  */
-char ssid[] = "sloughnet";      // your network SSID (name)
+char ssid[] = "sloughnet";     // your network SSID (name)
 char pass[] = "homebase"; // your network password
+bool WiFiAP = false;      // Do yo want the ESP as AP?
 
 /*
  * WiFi init stuff
@@ -21,6 +22,7 @@ char pass[] = "homebase"; // your network password
 void startWiFiClient()
 {
   Serial.println("Connecting to "+(String)ssid);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
   
   while (WiFi.status() != WL_CONNECTED) {
@@ -35,6 +37,7 @@ void startWiFiClient()
 
 void startWiFiAP()
 {
+  WiFi.mode(WIFI_AP);
   WiFi.softAP(ssid, pass);
   Serial.println("AP started");
   Serial.println("IP address: " + WiFi.softAPIP().toString());
@@ -46,13 +49,11 @@ void setup()
   Serial.println();
   Serial.println();
 
-  Serial.println("wtf");
-
-  // Connect to a WiFi network
-  startWiFiClient();
-
-  // Or start the ESP as AP
-  //startWiFiAP();
+  // Start WiFi
+  if (WiFiAP)
+    startWiFiAP();
+  else
+    startWiFiClient();
 
   // Start the broker
   Serial.println("Starting MQTT broker");
@@ -63,6 +64,4 @@ void loop()
 {   
   // do anything here
   delay(1000);
-
-  //Serial.println(".");
 }
