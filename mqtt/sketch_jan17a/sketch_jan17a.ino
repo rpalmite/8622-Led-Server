@@ -1,13 +1,13 @@
 /*
- * uMQTTBroker demo for Arduino
+ * uMQTTBroker demo for Arduino (C++-style)
  * 
- * Minimal Demo: the program simply starts a broker and waits for any client to connect.
+ * The program defines a custom broker class with callbacks, 
+ * starts it, subscribes locally to anything, and publishs a topic every second.
+ * Try to connect from a remote client and publish something - the console will show this as well.
  */
 
 #include <ESP8266WiFi.h>
 #include "uMQTTBroker.h"
-
-uMQTTBroker myBroker;
 
 /*
  * Your WiFi config here
@@ -15,6 +15,51 @@ uMQTTBroker myBroker;
 char ssid[] = "sloughnet";     // your network SSID (name)
 char pass[] = "homebase"; // your network password
 bool WiFiAP = false;      // Do yo want the ESP as AP?
+
+/*
+ * Custom broker class with overwritten callback functions
+ */
+class myMQTTBroker: public uMQTTBroker
+{
+public:
+    virtual bool onConnect(IPAddress addr, uint16_t client_count) {
+      Serial.println(addr.toString()+" connected");
+      return true;
+    }
+
+    virtual void onDisconnect(IPAddress addr, String client_id) {
+      Serial.println(addr.toString()+" ("+client_id+") disconnected");
+    }
+
+    virtual bool onAuth(String username, String password, String client_id) {
+      Serial.println("Username/Password/ClientId: "+username+"/"+password+"/"+client_id);
+      return true;
+    }
+    
+    virtual void onData(String topic, const char *data, uint32_t length) {
+      char data_str[length+1];
+      os_memcpy(data_str, data, length);
+      data_str[length] = '\0';
+      
+      Serial.println("received topic '"+topic+"' with data '"+(String)data_str+"'");
+      //printClients();
+    }
+
+    // Sample for the usage of the client info methods
+
+    virtual void printClients() {
+      for (int i = 0; i < getClientCount(); i++) {
+        IPAddress addr;
+        String client_id;
+         
+        getClientAddr(i, addr);
+        getClientId(i, client_id);
+        Serial.println("Client "+client_id+" on addr: "+addr.toString());
+      }
+    }
+};
+
+myMQTTBroker myBroker;
 
 /*
  * WiFi init stuff
@@ -58,10 +103,35 @@ void setup()
   // Start the broker
   Serial.println("Starting MQTT broker");
   myBroker.init();
+
+/*
+ * Subscribe to anything
+ */
+  myBroker.subscribe("#");
 }
 
+int counter = 0;
+
 void loop()
-{   
-  // do anything here
+{
+  /*
+  * Publish the counter value as String
+  */
+  if (counter % 20 == 0) {
+    myBroker.publish("broker/counter", (String)counter);
+    myBroker.publish("test/slow", (String)counter);
+  }
+  if (counter % 10 == 0) {
+    myBroker.publish("test/medium", (String)counter);
+  }
+  if (counter % 5 == 0) {
+    myBroker.publish("test/fast", (String)counter);
+  }
+  if (counter % 3 == 0) {
+    myBroker.publish("test/superfast", (String)counter);
+  }
+  counter++;
+
+  // wait a second
   delay(1000);
 }

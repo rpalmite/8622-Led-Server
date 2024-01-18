@@ -3,15 +3,15 @@
 #include <ESP8266WiFi.h>
 #include <vector>
 //#include <algorithm>
-#include "NetDiscovery.h"
-
 
 const char* ssid = "sloughnet";
 const char* password = "homebase";
-//const char* ssid = "CenturyLink8158";
-//const char* password = "r5hpj9j9st5bbr";
+/*
+const char* ssid = "CenturyLink8158";
+const char* password = "r5hpj9j9st5bbr";
+*/
 
-// Set up a web server on port 80
+// Set up a web server port
 WiFiServer server(80);
 
 // HTTP Variable to store requests
@@ -192,9 +192,6 @@ class RandomPinEffect {
 class RainbowAntEffect {
   int defaultEffectSize = 5;
   public:
-    // void selection(); // aka get pins
-    // void transition(); // aka get old pins (step-1)
-    // void apply(); // aka change color
     void doEffect(PinArray pins, int step) {
       int effectSize = min(defaultEffectSize+1, pins.size()); // +1 for last pin to turn off
       
@@ -212,7 +209,7 @@ class RainbowAntEffect {
 
 
 
-// TODO is this still needed?
+
 const int led14 = 14;  // D14?
 
 // TODO put this inside a 
@@ -258,18 +255,21 @@ PinInfo pinArray[NUM_PINS] = {
   PinInfo("Pin16", 16, OUTPUT, true)
 };
 
-
-// Global Variables
 PinArray pins = PinArray();
-NetDiscoverer discoverer = NetDiscoverer();
-
 
 void setup() {
-  // this board's serial speed??? 
   Serial.begin(115200);
+  //pinSetup();
 
   // led
   pinMode(led14, OUTPUT);
+
+  // Set the relays to on by default
+  //digitalWrite(relay1, HIGH);
+  //digitalWrite(relay2, HIGH);
+  //digitalWrite(relay3, HIGH);
+  //digitalWrite(relay4, HIGH);
+
   // led
   analogWrite(led14, 100);
 
@@ -297,12 +297,39 @@ void setup() {
   pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
   pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
   pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
-
-  // initiate discovery of devices
-  discoverer.initDiscoveryListening();
 }
 
 void loop() {
+  // Declare the number of pins
+  //const int NUM_PINS = 8;
+
+  // Declare the array of PinInfo objects
+  /*PinInfo pinArray[NUM_PINS] = { }; // String name, int number, int inputOutputMode, boolean isDigitalPin
+  pinArray[0] = PinInfo::create("Pin1", 2, OUTPUT, true);
+  pinArray[1] = PinInfo::create("Pin2", 3, INPUT, true);
+  pinArray[2] = PinInfo::create("Pin3", 4, OUTPUT, false);
+  pinArray[3] = PinInfo::create("Pin4", 5, INPUT, false);
+
+  PinInfo pinArray[NUM_PINS] = {
+    PinInfo("Pin1", 2, OUTPUT, true),
+    PinInfo("Pin2", 3, INPUT, true),
+    PinInfo("Pin3", 4, OUTPUT, true),
+    PinInfo("Pin4", 5, INPUT, true)
+  };
+  */
+  /*
+  PinInfo pinArray[NUM_PINS] = {
+    PinInfo("Pin1", 2, OUTPUT, true),
+    PinInfo("Pin2", 3, INPUT, true),
+    PinInfo("Pin3", 4, OUTPUT, true),
+    PinInfo("Pin4", 5, INPUT, true),
+    PinInfo("Pin12", 12, OUTPUT, true),
+    PinInfo("Pin13", 13, OUTPUT, true),
+    PinInfo("Pin16", 16, OUTPUT, true),
+    PinInfo("Pin4", 5, OUTPUT, true)
+  };
+  */
+
   // get client requests
   WiFiClient client = server.available();  // Web server starts
 
@@ -329,9 +356,19 @@ void loop() {
               String pinName = pin.getName();
               String pinNum = String(pin.getNumber());
               if (header.indexOf("GET /" + pinName + "/on") >= 0) {
+                // if (i==3) {
+                //   pin.setValue(100);
+                // } else {
+                //   pin.turnOn();
+                // }
                 Serial.println("*** " + pinNum + " ON ***");
                 pin.turnOn();
               } else if (header.indexOf("GET /" + pinName + "/off") >= 0) {
+                // if (i==3) {
+                //   pin.setValue(10);
+                // } else {
+                //   pin.turnOff();
+                // }
                 Serial.println("*** " + pinNum + " OFF ***");
                 pin.turnOff();
               } else if (header.indexOf("GET /favicon.ico") >= 0) {
