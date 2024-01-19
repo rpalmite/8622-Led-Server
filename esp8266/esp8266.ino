@@ -263,16 +263,8 @@ PinInfo pinArray[NUM_PINS] = {
 PinArray pins = PinArray();
 NetDiscoverer discoverer = NetDiscoverer();
 
-
-void setup() {
-  // this board's serial speed??? 
-  Serial.begin(115200);
-
-  // led
-  pinMode(led14, OUTPUT);
-  // led
-  analogWrite(led14, 100);
-
+// TODO WebServer.init()
+void initWebserver() {
   // Connect to WiFi
   Serial.print("Connecting to WiFi network");
   Serial.println(ssid);
@@ -288,21 +280,10 @@ void setup() {
 
   // Start the webserver
   server.begin();
-
-  // Initialize the PinInfo objects
-  pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
-  pins.push(PinInfo::create("Pin2", 4, OUTPUT, true));
-  pins.push(PinInfo::create("Pin3", 0, OUTPUT, true));
-  pins.push(PinInfo::create("Pin4", 2, OUTPUT, true));
-  pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
-  pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
-  pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
-
-  // initiate discovery of devices
-  discoverer.initDiscoveryListening();
 }
 
-void loop() {
+// TODO WebServer.handleRequest()
+void handleWebRequests() {
   // get client requests
   WiFiClient client = server.available();  // Web server starts
 
@@ -404,4 +385,32 @@ void loop() {
     Serial.println("Client disconnected.");
     Serial.println("");
   }
+}
+
+void setup() {
+  // this board's serial speed??? 
+  Serial.begin(115200);
+
+  // led
+  pinMode(led14, OUTPUT);
+  // led
+  analogWrite(led14, 100);
+
+  initWebserver();
+
+  // Initialize the PinInfo objects
+  pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
+  pins.push(PinInfo::create("Pin2", 4, OUTPUT, true));
+  pins.push(PinInfo::create("Pin3", 0, OUTPUT, true));
+  pins.push(PinInfo::create("Pin4", 2, OUTPUT, true));
+  pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
+  pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
+  pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
+
+  // initiate discovery of devices
+  discoverer.initDiscoveryListening();
+}
+
+void loop() {
+  handleWebRequests();
 }
