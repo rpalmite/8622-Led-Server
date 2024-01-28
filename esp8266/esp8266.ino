@@ -3,8 +3,10 @@
 #include <ESP8266WiFi.h>
 #include <vector>
 //#include <algorithm>
-#include "NetDiscovery.h"
+//#include "NetDiscovery.h"
+#include "uMQTTBroker.h"
 
+const bool become_access_point = 0;
 
 const char* ssid = "sloughnet";
 const char* password = "homebase";
@@ -16,6 +18,69 @@ WiFiServer server(80);
 
 // HTTP Variable to store requests
 String header;
+
+///////////// EASY MQTT //////////
+
+/*
+ * Custom broker class with overwritten callback functions
+ */
+class myMQTTBroker: public uMQTTBroker
+{
+public:
+    virtual bool onConnect(IPAddress addr, uint16_t client_count) {
+      Serial.println(addr.toString()+" connected");
+      return true;
+    }
+
+    virtual void onDisconnect(IPAddress addr, String client_id) {
+      Serial.println(addr.toString()+" ("+client_id+") disconnected");
+    }
+
+    virtual bool onAuth(String username, String password, String client_id) {
+      Serial.println("Username/Password/ClientId: "+username+"/"+password+"/"+client_id);
+      return true;
+    }
+    
+    virtual void onData(String topic, const char *data, uint32_t length) {
+      char data_str[length+1];
+      os_memcpy(data_str, data, length);
+      data_str[length] = '\0';
+      
+      Serial.println("received topic '"+topic+"' with data '"+(String)data_str+"'");
+      //printClients();
+    }
+
+    // Sample for the usage of the client info methods
+
+    virtual void printClients() {
+      for (int i = 0; i < getClientCount(); i++) {
+        IPAddress addr;
+        String client_id;
+         
+        getClientAddr(i, addr);
+        getClientId(i, client_id);
+        Serial.println("Client "+client_id+" on addr: "+addr.toString());
+      }
+    }
+};
+
+
+myMQTTBroker myBroker; // TODO rename mqttBroker
+
+////// EASY ACCESS POINT //////
+
+char ap_ssid[] = "beatnet";     // your network SSID (name)
+char ap_pass[] = "password"; // your network password
+
+void startWiFiAP()
+{
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ap_ssid, ap_pass);
+  Serial.println("AP started");
+  Serial.println("IP address: " + WiFi.softAPIP().toString());
+}
+
+////////////// EASY IO ///////////////
 
 // TODO class PinArray
 // set transition speed
@@ -261,7 +326,7 @@ PinInfo pinArray[NUM_PINS] = {
 
 // Global Variables
 PinArray pins = PinArray();
-NetDiscoverer discoverer = NetDiscoverer();
+//NetDiscoverer discoverer = NetDiscoverer();
 
 // TODO WebServer.init()
 void initWebserver() {
@@ -388,15 +453,10 @@ void handleWebRequests() {
 }
 
 void setup() {
-  // this board's serial speed??? 
+  // this board's serial speed???
   Serial.begin(115200);
 
-  // led
-  pinMode(led14, OUTPUT);
-  // led
-  analogWrite(led14, 100);
-
-  initWebserver();
+  //initWebserver();
 
   // Initialize the PinInfo objects
   pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
@@ -408,9 +468,133 @@ void setup() {
   pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
 
   // initiate discovery of devices
-  discoverer.initDiscoveryListening();
+  //discoverer.initDiscoveryListening(); //TODO delete this line
+  if (become_access_point) {
+     startWiFiAP();
+  }
+  myBroker.init();
+  myBroker.subscribe("#");
+
 }
 
 void loop() {
-  handleWebRequests();
+    // led
+  //pinMode(led14, OUTPUT);
+  // led
+  //analogWrite(led14, 20);
+
+  //handleWebRequests();
+
+  delay(5000);
+  client_status();
+  delay(4000);
+  
+  // // white
+  // Serial.println("white");
+  // pins.get(0).turnOn();
+  // pins.get(1).turnOn();
+  // pins.get(2).turnOn();
+  // delay(1000);
+
+  // // off
+  // Serial.println("off");
+  // pins.get(0).turnOff();
+  // pins.get(1).turnOff();
+  // pins.get(2).turnOff();
+  // delay(1000);
+
+  // //blue
+  // Serial.println("blue");
+  // pins.get(0).turnOff();
+  // pins.get(1).turnOff();
+  // pins.get(2).turnOn();
+  // delay(1000);
+
+  // // red
+  // Serial.println("red");
+  // pins.get(0).turnOn();
+  // pins.get(1).turnOff();
+  // pins.get(2).turnOff();
+  // delay(1000);
+
+  // // green
+  // Serial.println("blue");
+  // pins.get(0).turnOff();
+  // pins.get(1).turnOn();
+  // pins.get(2).turnOff();
+  // delay(1000);
+}
+
+
+
+void client_status() {
+
+  unsigned char number_client;
+  struct station_info *stat_info;
+  
+  struct ip_addr *IPaddress;
+  IPAddress address;
+  int i=1;
+  
+  number_client= wifi_softap_get_station_num();
+  stat_info = wifi_softap_get_station_info();
+  
+  Serial.print(" Total Connected Clients are = ");
+  Serial.println(number_client);
+  
+    while (stat_info != NULL) {
+      //Serial.print(" IP adress is = ");
+      //Serial.print(&stat_info->ip);
+      //Serial.print("end ip");
+      IPaddress = (struct ip_addr*)&stat_info->ip;
+      address = IPaddress->addr;
+      
+      Serial.print("client= ");
+      
+      Serial.print(i);
+      Serial.print(" IP adress is = ");
+      Serial.print((address));
+      Serial.print(" with MAC adress is = ");
+      Serial.print(stat_info->bssid[0],HEX);
+      Serial.print(" ");
+      Serial.print(stat_info->bssid[1],HEX);
+      Serial.print(" ");
+      Serial.print(stat_info->bssid[2],HEX);
+      Serial.print(" ");
+      Serial.print(stat_info->bssid[3],HEX);
+      Serial.print(" ");
+      Serial.print(stat_info->bssid[4],HEX);
+      Serial.print(" ");
+      Serial.print(stat_info->bssid[5],HEX);
+      Serial.print(" ");
+
+      stat_info = STAILQ_NEXT(stat_info, next);
+      i++;
+      Serial.println();
+
+      /*
+      IPaddress = &stat_info->ip;
+      address = IPaddress->addr;
+      
+      Serial.print("client= ");
+      
+      Serial.print(i);
+      Serial.print(" IP adress is = ");
+      Serial.print((address));
+      Serial.print(" with MAC adress is = ");
+      
+      Serial.print(stat_info->bssid[0],HEX);Serial.print(" ");
+      Serial.print(stat_info->bssid[1],HEX);Serial.print(" ");
+      Serial.print(stat_info->bssid[2],HEX);Serial.print(" ");
+      Serial.print(stat_info->bssid[3],HEX);Serial.print(" ");
+      Serial.print(stat_info->bssid[4],HEX);Serial.print(" ");
+      Serial.print(stat_info->bssid[5],HEX);Serial.print(" ");
+      
+      stat_info = STAILQ_NEXT(stat_info, next);
+      i++;
+      Serial.println();
+      */
+    }
+    
+  delay(500);
 }

@@ -8,13 +8,19 @@
 
 #include <ESP8266WiFi.h>
 #include "uMQTTBroker.h"
+#include <ESP8266WebServer.h>
 
 /*
  * Your WiFi config here
  */
 char ssid[] = "sloughnet";     // your network SSID (name)
 char pass[] = "homebase"; // your network password
-bool WiFiAP = false;      // Do yo want the ESP as AP?
+
+
+char ap_ssid[] = "basenet";
+char ap_pass[] = "house";
+
+bool WiFiAP = true;      // Do yo want the ESP as AP?
 
 /*
  * Custom broker class with overwritten callback functions
@@ -60,6 +66,7 @@ public:
 };
 
 myMQTTBroker myBroker;
+ESP8266WebServer server(80);
 
 /*
  * WiFi init stuff
@@ -83,7 +90,7 @@ void startWiFiClient()
 void startWiFiAP()
 {
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, pass);
+  WiFi.softAP(ap_ssid, ap_pass);
   Serial.println("AP started");
   Serial.println("IP address: " + WiFi.softAPIP().toString());
 }

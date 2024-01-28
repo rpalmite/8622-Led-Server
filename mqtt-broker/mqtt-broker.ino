@@ -47,10 +47,10 @@ void setup()
   Serial.println();
 
   // Connect to a WiFi network
-  startWiFiClient();
+  //startWiFiClient();
 
   // Or start the ESP as AP
-//startWiFiAP();
+  startWiFiAP();
 
   // Start the broker
   Serial.println("Starting MQTT broker");

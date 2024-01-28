@@ -1,4 +1,9 @@
 /*
+
+
+*** WORKING AP WITH MQTT BROKER ***
+
+
    Copyright (c) 2015, Majenko Technologies
    All rights reserved.
 
@@ -33,6 +38,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include "uMQTTBroker.h"
 
 #ifndef APSSID
 #define APSSID "ESPap"
@@ -44,7 +50,8 @@ const char *ssid = APSSID;
 const char *password = APPSK;
 
 ESP8266WebServer server(80);
-IPAddress myIP;
+
+uMQTTBroker mqttBroker;
 
 /* Just a little test message.  Go to http://192.168.4.1 in a web browser
    connected to this access point to see it.
@@ -60,15 +67,16 @@ void handleRoot() {
   server.send(200, "text/html", "<h1>You are connected</h1><h3>My IP Address is </h3>");
 }
 
-void setup() {
-  delay(1000);
-  Serial.begin(115200);
+
+
+// ACESS POINT CLASS
+void initAccessPoint() {
   Serial.println();
-  Serial.print("v1 Configuring access point...");
+  Serial.print("Configuring access point (v1)...");
   /* You can remove the password parameter if you want the AP to be open. */
   WiFi.softAP(ssid, password);
 
-  myIP = WiFi.softAPIP();
+  IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
   server.on("/", handleRoot);
@@ -76,6 +84,44 @@ void setup() {
   Serial.println("HTTP server started");
 }
 
-void loop() {
+// TODO rename
+void startAccessPoint() {
   server.handleClient();
+}
+
+void setup() {
+  delay(1000);
+  Serial.begin(115200);
+ 
+  initAccessPoint();
+
+  // Start the broker
+  Serial.println("Starting MQTT broker");
+  mqttBroker.init();
+}
+
+int counter = 0;
+
+void loop() {
+  startAccessPoint();
+
+  /*
+  * Publish the counter value as String
+  */
+  if (counter % 20 == 0) {
+    mqttBroker.publish("test/slow", (String)counter);
+  }
+  if (counter % 10 == 0) {
+    mqttBroker.publish("test/medium", (String)counter);
+  }
+  if (counter % 5 == 0) {
+    mqttBroker.publish("test/fast", (String)counter);
+  }
+  if (counter % 3 == 0) {
+    mqttBroker.publish("test/superfast", (String)counter);
+  }
+  counter++;
+
+  // wait a second
+  delay(1000);
 }
