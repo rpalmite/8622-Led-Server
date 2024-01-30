@@ -6,7 +6,7 @@
 //#include "NetDiscovery.h"
 #include "uMQTTBroker.h"
 
-const bool become_access_point = 0;
+const bool become_access_point = 1;
 
 const char* ssid = "sloughnet";
 const char* password = "homebase";
@@ -18,6 +18,7 @@ WiFiServer server(80);
 
 // HTTP Variable to store requests
 String header;
+
 
 ///////////// EASY MQTT //////////
 
@@ -45,9 +46,21 @@ public:
       char data_str[length+1];
       os_memcpy(data_str, data, length);
       data_str[length] = '\0';
-      
+      String dataString = (String)data_str;
+
       Serial.println("received topic '"+topic+"' with data '"+(String)data_str+"'");
       //printClients();
+
+      if (topic == "beat") {
+        if (dataString == "kick") {
+           Serial.println("blue");
+           pins.get(0).turnOff();
+           pins.get(1).turnOff();
+           pins.get(2).turnOn();
+           delay(1000);
+           pins.get(2).turnOff();
+        }
+      }
     }
 
     // Sample for the usage of the client info methods
@@ -276,6 +289,8 @@ class RainbowAntEffect {
 };
 
 
+PinArray pins = PinArray();
+
 
 // TODO is this still needed?
 const int led14 = 14;  // D14?
@@ -304,6 +319,7 @@ int getParameterValue(String queryString, String parameterName) {
   }
 }
 
+/*
 // Declare the number of pins
 const int NUM_PINS = 7;
 
@@ -322,10 +338,9 @@ PinInfo pinArray[NUM_PINS] = {
   PinInfo("Pin13", 13, OUTPUT, true),
   PinInfo("Pin16", 16, OUTPUT, true)
 };
-
+*/
 
 // Global Variables
-PinArray pins = PinArray();
 //NetDiscoverer discoverer = NetDiscoverer();
 
 // TODO WebServer.init()
@@ -370,8 +385,8 @@ void handleWebRequests() {
             client.println();
 
             //The PIN will be activated according to the received requests
-            for (int i = 0; i < NUM_PINS; i++) {
-              PinInfo pin = pinArray[i];
+            for (int i = 0; i < pins.size(); i++) {
+              PinInfo pin = pins.get(i);
               String pinName = pin.getName();
               String pinNum = String(pin.getNumber());
               if (header.indexOf("GET /" + pinName + "/on") >= 0) {
@@ -382,6 +397,9 @@ void handleWebRequests() {
                 pin.turnOff();
               } else if (header.indexOf("GET /favicon.ico") >= 0) {
                 Serial.println("Ignoring Favicon");
+              } else if (header.indexOf("GET /broker") >= 0) {
+                 Serial.println("setting broker");
+                 //String brokerIP = getParameterValue(header, "ip")
               } else {
                 Serial.println("*** Unrecognized API route ***");
               }
@@ -406,14 +424,14 @@ void handleWebRequests() {
             client.println("<body><h1><u><div class = \"headertext\"> WebServer based Device Controller</u></h1>");
 
             // The elements inside the web page are defined
-            for (int i = 0; i < NUM_PINS; i++) {
+            for (int i = 0; i < pins.size(); i++) {
               client.println("<div id=\"container\">");
               int deviceNum = i + 1;
               client.print("<p><div class=\"textbox mytext\">DEVICE ");
               client.print(deviceNum);
               client.println("</div>");
 
-              PinInfo pin = pinArray[i];
+              PinInfo pin = pins.get(i);
               String pinName = pin.getName();
               boolean pinIsOn = pin.isOn();
 
@@ -471,10 +489,11 @@ void setup() {
   //discoverer.initDiscoveryListening(); //TODO delete this line
   if (become_access_point) {
      startWiFiAP();
+  } else {
+     initWebserver();
   }
   myBroker.init();
   myBroker.subscribe("#");
-
 }
 
 void loop() {
@@ -528,7 +547,6 @@ void loop() {
 
 
 void client_status() {
-
   unsigned char number_client;
   struct station_info *stat_info;
   
