@@ -86,6 +86,7 @@ void loop() {
 
 // MainArduinoSketch.ino
 #include <ESP8266WiFi.h>
+// https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html
 #include <vector>
 #include "easymqtt.h"
 #include "PinInfo.h"

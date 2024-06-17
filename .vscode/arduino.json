@@ -1,4 +1,7 @@
 {
     "board": "esp8266:esp8266:d1_mini",
-    "port": "/dev/tty.Bluetooth-Incoming-Port"
+    "sketch": "esp8266/esp8266.ino",
+    "port": "COM5",
+    "output": "../build",
+    "intelliSenseGen": "global"
 }
