@@ -1,6 +1,7 @@
 // THIS IS THE ARDUINO IDE VERSION
 
 #include <ESP8266WiFi.h>
+// https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html
 #include <vector>
 //#include <algorithm>
 //#include "NetDiscovery.h"
