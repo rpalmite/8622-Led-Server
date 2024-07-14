@@ -5,6 +5,7 @@
 #include <vector>
 #include "PinInfo.h"
 
+// TODO rename PinSet
 class PinArray {
 public:
     std::vector<PinInfo> pins;

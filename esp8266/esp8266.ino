@@ -5,6 +5,18 @@
 
 #ifdef BE_CLIENT
 
+// SEARCH adafriut neopixel
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
+#define PIN 5
+#define NUMPIXELS 50
+
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
+#define DELAYVAL 500
+
+
 #include <SPI.h>
 //#include <WiFi101.h>
 #include <ESP8266WiFi.h>
@@ -13,14 +25,16 @@
 const char ssid[] = "sloughnet";
 const char pass[] = "homebase";
 
-//WiFiClient net;
+WiFiClient net;
 MQTTClient client;
 
 unsigned int lastMillis = 0;
 
+const int LED_PIN = 2;
+int LED_PATTERN = 0;
+
 void connect() {
  
-
   Serial.print("Connecting.");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -43,6 +57,8 @@ void connect() {
 
   client.subscribe("/hello");
   // client.unsubscribe("/hello");
+
+  client.subscribe("/led/pattern");
 }
 
 void messageReceived(String &topic, String &payload) {
@@ -52,6 +68,21 @@ void messageReceived(String &topic, String &payload) {
   // unsubscribe as it may cause deadlocks when other things arrive while
   // sending and receiving acknowledgments. Instead, change a global variable,
   // or push to a queue and handle it in the loop after calling `client.loop()`.
+  if (payload.equals("0")) {
+    LED_PATTERN = 0;
+  } else if (payload.equals("1")) {
+    LED_PATTERN = 1;
+  } else if (payload.equals("2")) {
+    LED_PATTERN = 2;
+  } else if (payload.equals("3")) {
+    LED_PATTERN = 3;
+  } else if (payload.equals("4")) {
+    LED_PATTERN = 4;
+  } else if (payload.equals("5")) {
+    LED_PATTERN = 5;
+  } else {
+    LED_PATTERN = LED_PATTERN++ % 5;
+  }
 }
 
 void setup() {
@@ -64,7 +95,14 @@ void setup() {
   client.onMessage(messageReceived);
 
   connect();
+
+//led strip
+#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
+  clock_prescale_set(clock_div_1);
+#endif
+  pixels.begin();
 }
+
 
 void loop() {
   client.loop();
@@ -77,6 +115,46 @@ void loop() {
   if (millis() - lastMillis > 1000) {
     lastMillis = millis();
     client.publish("/hello", "world");
+  }
+
+  if (LED_PATTERN == 0) {
+    pixels.clear();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(150, 0, 0));
+      pixels.show();
+      delay(DELAYVAL);
+    }
+  } else if (LED_PATTERN == 1) {
+    pixels.clear();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(0, 150, 0));
+      pixels.show();
+      delay(DELAYVAL);
+    }
+  } else if (LED_PATTERN == 2) {
+    pixels.clear();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(0, 0, 150));
+      pixels.show();
+      delay(DELAYVAL);
+    }
+  } else if (LED_PATTERN == 3) {
+    pixels.clear();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(75, 75, 75));
+      pixels.show();
+      delay(DELAYVAL);
+    }
+  } else if (LED_PATTERN == 4) {
+
+  } else if (LED_PATTERN == 5) {
+
+  } else {
+    
   }
 }
 
