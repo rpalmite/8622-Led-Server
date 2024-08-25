@@ -11,10 +11,12 @@
   #include <avr/power.h>
 #endif
 #define PIN 5
-#define NUMPIXELS 50
+#define NUMPIXELS 30
+#define NUM_LEDS NUMPIXELS
+
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
-#define DELAYVAL 500
+#define DELAYVAL 250
 
 
 #include <SPI.h>
@@ -30,8 +32,11 @@ MQTTClient client;
 
 unsigned int lastMillis = 0;
 
-const int LED_PIN = 2;
+//const int LED_PIN = 2;
 int LED_PATTERN = 0;
+int NUMBER_OF_PATTERNS = 5;
+const bool NO_WIFI = true;
+int INTENSITY = 25;
 
 void connect() {
  
@@ -87,78 +92,413 @@ void messageReceived(String &topic, String &payload) {
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, pass);
 
-  // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported
-  // by Arduino. You need to set the IP address directly.
-  client.begin("public.cloud.shiftr.io", net);
-  client.onMessage(messageReceived);
+  Serial.println("Client started");
 
-  connect();
+  if (!NO_WIFI) {
+    WiFi.begin(ssid, pass);
+
+    // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported
+    // by Arduino. You need to set the IP address directly.
+    client.begin("public.cloud.shiftr.io", net);
+    client.onMessage(messageReceived);
+
+    connect();
+  }
 
 //led strip
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
   clock_prescale_set(clock_div_1);
 #endif
   pixels.begin();
+
+  pinMode(LED_BUILTIN, OUTPUT);  // Initialize the LED_BUILTIN pin as an output
+
+  int randomNumber = random(0, NUMBER_OF_PATTERNS);
+  LED_PATTERN = randomNumber;
+
+  Serial.print("First Pattern = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
+}
+
+///// PATTERNS
+void rainbow() { // modified from Adafruit example to make it a state machine
+    static uint16_t j=0;
+    for(int i=0; i<pixels.numPixels(); i++) {
+      pixels.setPixelColor(i, Wheel((i+j) & 255));
+    }
+    pixels.show();
+    j++;
+    if(j >= 256) j=0;
+    //lastUpdate = millis(); // time for next change to the display
+}
+void wipe(){ // clear all LEDs
+     for(int i=0;i<pixels.numPixels();i++){
+          pixels.setPixelColor(i, pixels.Color(0,0,0));
+       }
+}
+
+// rainbow wheel of colors
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return pixels.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return pixels.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+/////
+void showStrip() {
+ #ifdef ADAFRUIT_NEOPIXEL_H
+   // NeoPixel
+   pixels.show();
+ #endif
+ #ifndef ADAFRUIT_NEOPIXEL_H
+   // FastLED
+   FastLED.show();
+ #endif
+}
+
+void setPixel(int Pixel, byte red, byte green, byte blue) {
+ #ifdef ADAFRUIT_NEOPIXEL_H
+   // NeoPixel
+   pixels.setPixelColor(Pixel, pixels.Color(red, green, blue));
+ #endif
+ #ifndef ADAFRUIT_NEOPIXEL_H
+   // FastLED
+   leds[Pixel].r = red;
+   leds[Pixel].g = green;
+   leds[Pixel].b = blue;
+ #endif
+}
+
+void setAll(byte red, byte green, byte blue) {
+  for(int i = 0; i < NUM_LEDS; i++ ) {
+    setPixel(i, red, green, blue);
+  }
+  showStrip();
+}
+
+void CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
+
+  for(int i = 0; i < NUM_LEDS-EyeSize-2; i++) {
+    setAll(0,0,0);
+    setPixel(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      setPixel(i+j, red, green, blue);
+    }
+    setPixel(i+EyeSize+1, red/10, green/10, blue/10);
+    showStrip();
+    delay(SpeedDelay);
+  }
+
+  delay(ReturnDelay);
+
+  for(int i = NUM_LEDS-EyeSize-2; i > 0; i--) {
+    setAll(0,0,0);
+    setPixel(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      setPixel(i+j, red, green, blue);
+    }
+    setPixel(i+EyeSize+1, red/10, green/10, blue/10);
+    showStrip();
+    delay(SpeedDelay);
+  }
+ 
+  delay(ReturnDelay);
+}
+void RGBLoop(){
+  for(int j = 0; j < 3; j++ ) {
+    // Fade IN
+    for(int k = 0; k < 256; k++) {
+      switch(j) {
+        case 0: setAll(k,0,0); break;
+        case 1: setAll(0,k,0); break;
+        case 2: setAll(0,0,k); break;
+      }
+      showStrip();
+      delay(3);
+    }
+    // Fade OUT
+    for(int k = 255; k >= 0; k--) {
+      switch(j) {
+        case 0: setAll(k,0,0); break;
+        case 1: setAll(0,k,0); break;
+        case 2: setAll(0,0,k); break;
+      }
+      showStrip();
+      delay(3);
+    }
+  }
+}
+void FadeInOut(byte red, byte green, byte blue){
+  float r, g, b;
+     
+  for(int k = 0; k < 256; k=k+1) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    showStrip();
+  }
+     
+  for(int k = 255; k >= 0; k=k-2) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    showStrip();
+  }
+}
+  
+
+void Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause){
+  for(int j = 0; j < StrobeCount; j++) {
+    setAll(red,green,blue);
+    showStrip();
+    delay(FlashDelay);
+    setAll(0,0,0);
+    showStrip();
+    delay(FlashDelay);
+  }
+ 
+ delay(EndPause);
+}
+/////////////////
+/// GPT PATTERNS ////
+
+// Simple chase function
+void chase(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color);    // Set the current LED to the color
+    pixels.show();                     // Update the strip to show the color
+    delay(wait);                      // Wait for a while
+    pixels.setPixelColor(i, 0);        // Turn off the current LED
+  }
+}
+// Rainbow chase function
+void rainbowChase(int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    int color = Wheel((i * 256 / pixels.numPixels()) & 255); // Calculate rainbow color
+    pixels.setPixelColor(i, color);
+    pixels.show();
+    delay(wait);
+    pixels.setPixelColor(i, 0); // Turn off the current LED
+  }
+}
+
+/*
+theaterChase(pixels.Color(255, 0, 0), 50);  // Red theater chase
+  theaterChase(pixels.Color(0, 255, 0), 50);  // Green theater chase
+  theaterChase(pixels.Color(0, 0, 255), 50);  // Blue theater chase
+  */
+
+void theaterChase(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int j = 0; j < 10; j++) {  // Run the loop a few times
+    for (int q = 0; q < 3; q++) { 
+      for (int i = 0; i < pixels.numPixels(); i = i + 3) {
+        pixels.setPixelColor(i + q, color);  // Turn on every third pixel
+      }
+      pixels.show();
+      delay(wait);
+      for (int i = 0; i < pixels.numPixels(); i = i + 3) {
+        pixels.setPixelColor(i + q, 0);      // Turn off every third pixel
+      }
+    }
+  }
+}
+
+  //runningDot(pixels.Color(255, 255, 255), 100);  // White running dot
+
+void runningDot(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    pixels.setPixelColor(i, color);
+    pixels.show();
+    delay(wait);
+  }
+}
+
+void runningLine(uint32_t color_old, int lineSize, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, getColor1());
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, getColor3());
+      } else {
+        pixels.setPixelColor(j, getColor2());
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+}
+
+void bouncingLine(uint32_t color_old, int lineSize, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, getColor1());
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, getColor3());
+      } else {
+        pixels.setPixelColor(j, getColor2());
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+  for (int i = pixels.numPixels()-1; i > 0 ; i--) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, getColor1());
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, getColor3());
+      } else {
+        pixels.setPixelColor(j, getColor2());
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+}
+
+uint32_t getIntensity(uint32_t color, int intensity) {
+    return color;
+}
+
+uint32_t getColor() {
+  return getColor1();
+}
+uint32_t getColor1() {
+  uint32_t color = pixels.Color(10, 0, 0);
+  return color;
+}
+uint32_t getColor2() {
+  uint32_t color = pixels.Color(0, 25, 0);
+  return color;
+}
+uint32_t getColor3() {
+  uint32_t color = pixels.Color(10, 0, 0);
+  return color;
 }
 
 
+/////////
+
 void loop() {
-  client.loop();
+  if (!NO_WIFI) {
+    client.loop();
 
-  if (!client.connected()) {
-    connect();
-  }
-
-  // publish a message roughly every second.
-  if (millis() - lastMillis > 1000) {
-    lastMillis = millis();
-    client.publish("/hello", "world");
-  }
-
-  if (LED_PATTERN == 0) {
-    pixels.clear();
-
-    for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, pixels.Color(150, 0, 0));
-      pixels.show();
-      delay(DELAYVAL);
+    if (!client.connected()) {
+      connect();
     }
+  }
+
+  if (!NO_WIFI) {
+    // publish a message roughly every second.
+    if (millis() - lastMillis > 1000) {
+      lastMillis = millis();
+      client.publish("/hello", "world");
+    }
+  }
+  
+  Serial.print("Loop Pattern = " + LED_PATTERN);
+  Serial.print(LED_PATTERN);
+  Serial.println("");
+  //INTENSITY
+  
+  // uint32_t color1 = pixels.Color(0, 50, 0);
+  // uint32_t color2 = pixels.Color(0, 150, 0);
+  // uint32_t color3 = pixels.Color(0, 150, 0);
+
+  //uint32_t red = pixels.Color(255, 0, 0);
+  
+  if (LED_PATTERN == 0) {
+    // pixels.clear();
+
+    // digitalWrite(LED_BUILTIN, LOW);  // Turn the LED on (Note that LOW is the voltage level
+    // for(int i=0; i<NUMPIXELS; i++) {
+    //   pixels.setPixelColor(i, pixels.Color(75, 25, 25));
+    //   pixels.show();
+    //   delay(DELAYVAL);
+    // }
+    // digitalWrite(LED_BUILTIN, HIGH);
+   //rainbow();
+    bouncingLine(getColor(), 5, 50); // Red chase
+    //FadeInOut(0xff, 0xff, 0xff); // white
+    //FadeInOut(0x00, 0x00, 0xff); // blue
   } else if (LED_PATTERN == 1) {
     pixels.clear();
-
     for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, pixels.Color(0, 150, 0));
+      pixels.setPixelColor(i, getColor());
       pixels.show();
       delay(DELAYVAL);
     }
   } else if (LED_PATTERN == 2) {
-    pixels.clear();
-
-    for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, pixels.Color(0, 0, 150));
-      pixels.show();
-      delay(DELAYVAL);
-    }
+    CylonBounce(0xff, 0, 0, 4, 10, 50);
   } else if (LED_PATTERN == 3) {
+    RGBLoop();
+  } else if (LED_PATTERN == 4) {
+    FadeInOut(0xff, 0x00, 0x00); // red
+    FadeInOut(0xff, 0xff, 0xff); // white
+    FadeInOut(0x00, 0x00, 0xff); // blue
+  } else if (LED_PATTERN == 5) {
+    Strobe(0xff, 0xff, 0xff, 10, 50, 1000);
+  } else if (LED_PATTERN == 6) {
+    runningLine(getColor(), 5, 100);  // White running line
+  } else {
     pixels.clear();
 
     for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, pixels.Color(75, 75, 75));
+      pixels.setPixelColor(i, getColor());
       pixels.show();
       delay(DELAYVAL);
     }
-  } else if (LED_PATTERN == 4) {
-
-  } else if (LED_PATTERN == 5) {
-
-  } else {
-    
   }
 }
 
 #endif // BE_CLIENT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #ifdef BE_SERVER
 
