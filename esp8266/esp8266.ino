@@ -17,11 +17,13 @@
 #define NUMPIXELS 200
 #define NUM_LEDS NUMPIXELS
 #define DELAYVAL 250
+#define NUM_STRIPS 2
 
+// TODO pixels not needed
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
 
-//Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
-LEDStrip strip1(NUM_LEDS, PIN);
-LEDStrip strip2(NUM_LEDS, PIN2);
+LEDStrip strip1(NUM_LEDS, PIN, 0);
+LEDStrip strip2(NUM_LEDS, PIN, 10);
 
 LEDStrip *strips[] = { &strip1, &strip2 };
 
@@ -133,6 +135,25 @@ void setup() {
   Serial.print("First Pattern = ");
   Serial.print(LED_PATTERN);
   Serial.println("");
+
+
+  // PATTERNS!!!!
+
+  // Initialize both strips
+  strip1.begin();
+  strip2.begin();
+
+  // Create color objects
+  MyColor red(255, 0, 0);
+  MyColor blue(0, 0, 255);
+
+  // Create different pattern objects using polymorphism, passing the array of strips
+  //patterns[0] = new RainbowCyclePattern(strips, NUM_STRIPS);
+  //patterns[1] = new ColorChasePattern(strips, NUM_STRIPS, red);
+  //patterns[2] = new TheaterChasePattern(strips, NUM_STRIPS, blue);
+  patterns[1] = new CylonBouncePattern(strips, 2, red, 5, 50, 100);
+  patterns[0] = new BouncingLinePattern(strips, 2, 5, 50);  // 5 pixel line, 50ms delay
+
 }
 
 ///// PATTERNS
@@ -472,6 +493,18 @@ void randomSpots(int size) { // size = every so many pixels randomly
 /////////////////
 
 void loop() {
+  // Run each pattern one by one
+  //patterns[0]->run(50);  // Runs the rainbow pattern, strip offsets are applied
+  //delay(1000);
+
+  patterns[1]->run(50);  // Runs the color chase pattern, strip offsets are applied
+  delay(1000);
+
+  patterns[2]->run(50);  // Runs the theater chase pattern, strip offsets are applied
+  delay(1000);
+}
+
+void loop2() {
   if (!NO_WIFI) {
     client.loop();
 

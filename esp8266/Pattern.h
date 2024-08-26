@@ -75,4 +75,35 @@ class TheaterChasePattern : public Pattern {
     void applyPattern(LEDStrip *strip, int wait) override;
 };
 
+class CylonBouncePattern : public Pattern {
+  private:
+    MyColor color;
+    int eyeSize;
+    int speedDelay;
+    int returnDelay;
+
+  public:
+    CylonBouncePattern(LEDStrip **stripsPointer, int numStrips, MyColor c, int eyeSize, int speedDelay, int returnDelay)
+      : Pattern(stripsPointer, numStrips), color(c), eyeSize(eyeSize), speedDelay(speedDelay), returnDelay(returnDelay) {}
+
+    void applyPattern(LEDStrip *strip, int wait) override;
+};
+
+class BouncingLinePattern : public Pattern {
+  private:
+    int lineSize;
+    int wait;
+
+  public:
+    BouncingLinePattern(LEDStrip **stripsPointer, int numStrips, int lineSize, int wait)
+      : Pattern(stripsPointer, numStrips), lineSize(lineSize), wait(wait) {}
+
+    void applyPattern(LEDStrip *strip, int wait) override;
+
+  private:
+    uint32_t modifyColor(uint32_t color, int redMod, int greenMod, int blueMod);
+    uint32_t getColor();
+};
+
+
 #endif
