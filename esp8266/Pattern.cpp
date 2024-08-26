@@ -1,13 +1,13 @@
 #include "Pattern.h"
 
 // Implementation of RainbowCyclePattern
-void RainbowCyclePattern::applyPattern(LEDStrip *strip, int wait) {
+void RainbowCyclePattern::applyPattern(LEDStrip *strip) {
   for (int j = 0; j < 256 * 5; j++) {  // 5 cycles of all colors on the wheel
     for (int i = 0; i < strip->numPixels(); i++) {
       strip->setPixelColor(i, wheel((i * 256 / strip->numPixels() + j) & 255, strip));
     }
     strip->show();
-    delay(wait);
+    wait(20);  // Internal delay for this pattern
   }
 }
 
@@ -26,150 +26,213 @@ uint32_t RainbowCyclePattern::wheel(byte WheelPos, LEDStrip *strip) {
 }
 
 // Implementation of ColorChasePattern
-void ColorChasePattern::applyPattern(LEDStrip *strip, int wait) {
+void ColorChasePattern::applyPattern(LEDStrip *strip) {
   uint32_t colorValue = color.toUint32();
   for (int i = 0; i < strip->numPixels(); i++) {
     strip->setPixelColor(i, colorValue);
     strip->show();
-    delay(wait);
-    strip->setPixelColor(i, 0); // Turn off the pixel to create a chase effect
+    wait(50);  // Internal delay for this pattern
+    strip->setPixelColor(i, 0);  // Turn off the pixel to create a chase effect
   }
 }
 
 // Implementation of TheaterChasePattern
-void TheaterChasePattern::applyPattern(LEDStrip *strip, int wait) {
+void TheaterChasePattern::applyPattern(LEDStrip *strip) {
   uint32_t colorValue = color.toUint32();
   for (int j = 0; j < 10; j++) {  // Do 10 cycles of the chase pattern
     for (int q = 0; q < 3; q++) { // Cycle through 3 different phases
-      for (int i = 0; i < strip->numPixels(); i = i + 3) {
+      for (int i = 0; i < strip->numPixels(); i += 3) {
         strip->setPixelColor(i + q, colorValue);  // Set every third pixel
       }
       strip->show();
-      delay(wait);
-      for (int i = 0; i < strip->numPixels(); i = i + 3) {
+      wait(100);  // Internal delay for this pattern
+      for (int i = 0; i < strip->numPixels(); i += 3) {
         strip->setPixelColor(i + q, 0);  // Turn off every third pixel
       }
     }
   }
 }
 
-void CylonBouncePattern::applyPattern(LEDStrip *strip, int wait) {
+// Implementation of CylonBouncePattern
+void CylonBouncePattern::applyPattern(LEDStrip *strip) {
   // Forward pass
-  for(int i = 0; i < strip->numPixels() - eyeSize - 2; i++) {
-    // Turn off all LEDs
-    for (int k = 0; k < strip->numPixels(); k++) {
-      strip->setPixelColor(k, strip->Color(0, 0, 0));
-    }
+  for (int i = 0; i < strip->numPixels() - eyeSize - 2; i++) {
+    strip->clear();
 
-    // Dimmed leading and trailing LED
+    // Dimmed leading LED
     strip->setPixelColor(i, strip->Color(color.red / 10, color.green / 10, color.blue / 10));
-    
+
     // The 'eye' of the Cylon
-    for(int j = 1; j <= eyeSize; j++) {
+    for (int j = 1; j <= eyeSize; j++) {
       strip->setPixelColor(i + j, strip->Color(color.red, color.green, color.blue));
     }
 
-    // Dimmed trailing LED after the 'eye'
+    // Dimmed trailing LED
     strip->setPixelColor(i + eyeSize + 1, strip->Color(color.red / 10, color.green / 10, color.blue / 10));
 
-    // Show the changes
     strip->show();
-    delay(speedDelay);
+    wait(speedDelay);  // Internal delay for this pattern
   }
 
   // Delay before returning
-  delay(returnDelay);
+  wait(returnDelay);
 
   // Backward pass
-  for(int i = strip->numPixels() - eyeSize - 2; i > 0; i--) {
-    // Turn off all LEDs
-    for (int k = 0; k < strip->numPixels(); k++) {
-      strip->setPixelColor(k, strip->Color(0, 0, 0));
-    }
+  for (int i = strip->numPixels() - eyeSize - 2; i > 0; i--) {
+    strip->clear();
 
-    // Dimmed leading and trailing LED
+    // Dimmed leading LED
     strip->setPixelColor(i, strip->Color(color.red / 10, color.green / 10, color.blue / 10));
 
     // The 'eye' of the Cylon
-    for(int j = 1; j <= eyeSize; j++) {
+    for (int j = 1; j <= eyeSize; j++) {
       strip->setPixelColor(i + j, strip->Color(color.red, color.green, color.blue));
     }
 
-    // Dimmed trailing LED after the 'eye'
+    // Dimmed trailing LED
     strip->setPixelColor(i + eyeSize + 1, strip->Color(color.red / 10, color.green / 10, color.blue / 10));
 
-    // Show the changes
     strip->show();
-    delay(speedDelay);
+    wait(speedDelay);  // Internal delay for this pattern
   }
 
   // Delay before next cycle
-  delay(returnDelay);
+  wait(returnDelay);
 }
 
 // BouncingLinePattern //
 
-void BouncingLinePattern::applyPattern(LEDStrip *strip, int wait) {
+void makeLine(LEDStrip *strip, int start, int stop, uint32_t color, int lineSize) {
+    // turn on the line
+    for (int j = start; j < start + lineSize && j < stop; j++) {
+      strip->setPixelColor(j, color);  // Full color on the last pixel
+
+      // if (j == i) {
+      //   //strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim first pixel
+      // } else if (j == i + lineSize - 1) {
+      //   strip->setPixelColor(j, color);  // Full color on the last pixel
+      // } else {
+      //   //strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim middle pixels
+      // }
+    }
+}
+
+// Implementation of BouncingLinePattern
+void BouncingLinePattern::applyPattern(LEDStrip *strip) {
+  Serial.println("BouncingLine");
+
   uint32_t color = getColor();
 
-  // Forward bouncing line
-  for (int i = 0; i < strip->numPixels(); i++) {
-    strip->show();  // Show initial state
-    strip->clear(); // Clear the strip
+  int miniStripFactor = 30;
 
-    for (int j = i; j < i + lineSize && j < strip->numPixels(); j++) {
-      if (j == i) {
-        strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim first pixel
-      } else if (j == i + lineSize - 1) {
-        strip->setPixelColor(j, color);  // Full color on the last pixel
-      } else {
-        strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim middle pixels
-      }
-    }
+  // over alll the pixels
+  for (int i = 0; i < strip->numPixels(); i++) {
+    strip->clear();  // Clear the strip
+
+    makeLine(strip, i, strip->numPixels(), color, lineSize);
+    //makeLine(strip, i+30, strip->numPixels(), color, lineSize);
+
+    Serial.print("Bounce ");
+  //  Serial.print(LED_PATTERN);
+    Serial.println("");
 
     strip->show();
-    delay(wait);
+    wait(50);  // Internal delay for this pattern
   }
 
   color = getColor();  // Update color for the backward pass
 
   // Backward bouncing line
   for (int i = strip->numPixels() - 1; i >= 0; i--) {
-    strip->clear(); // Clear the strip
+    strip->clear();  // Clear the strip
 
     for (int j = i; j < i + lineSize && j < strip->numPixels(); j++) {
       if (j == i) {
-        strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim first pixel
+        //strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim first pixel
+        strip->setPixelColor(j, color);  // Full color on the last pixel
       } else if (j == i + lineSize - 1) {
         strip->setPixelColor(j, color);  // Full color on the last pixel
       } else {
-        strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim middle pixels
+        //strip->setPixelColor(j, modifyColor(color, -10, -10, -10));  // Dim middle pixels
+        strip->setPixelColor(j, color);  // Full color on the last pixel
       }
     }
 
     strip->show();
-    delay(wait);
+    wait(50);  // Internal delay for this pattern
   }
 }
 
 uint32_t BouncingLinePattern::modifyColor(uint32_t color, int redMod, int greenMod, int blueMod) {
-  // Break down color into components
   uint8_t r = (color >> 16) & 0xFF;
   uint8_t g = (color >> 8) & 0xFF;
   uint8_t b = color & 0xFF;
 
-  // Modify each component with the provided mod values
   r = constrain(r + redMod, 0, 255);
   g = constrain(g + greenMod, 0, 255);
   b = constrain(b + blueMod, 0, 255);
 
-  return (r << 16) | (g << 8) | b;  // Recombine into uint32_t color
+  return (r << 16) | (g << 8) | b;
 }
 
 uint32_t BouncingLinePattern::getColor() {
+  uint8_t r = random(0, 256);
+  uint8_t g = random(0, 256);
+  uint8_t b = random(0, 256);
+  return (r << 16) | (g << 8) | b;
+}
+
+
+// RandomSpotsPattern
+
+void RandomSpotsPattern::applyPattern(LEDStrip *strip) {
+  int wait = 100;
+  uint32_t color = getColor();
+
+  strip->clear();  // Clear the strip
+
+  for (int i = 0; i < strip->numPixels(); i++) {
+    int randomNumber = random(0, size);
+    if (randomNumber % size == 0) {
+      strip->setPixelColor(i, color);
+    }
+  }
+
+  strip->show();  // Display the result
+  delay(wait);  // Internal delay for this pattern
+}
+
+void RandomClusteredDotsPattern::applyPattern(LEDStrip *strip) {
+  int wait = getPauseSpeed();
+  uint32_t color = getColor();
+
+  strip->clear();  // Clear the strip
+
+  for (int i = 0; i < strip->numPixels(); i++) {
+    // Determine if a cluster starts here based on density
+    if (random(0, density) == 0) {
+      // Light up a cluster of consecutive pixels
+      for (int j = 0; j < clusterSize && (i + j) < strip->numPixels(); j++) {
+        strip->setPixelColor(i + j, color);
+      }
+      // Skip over the pixels in the cluster
+      i += clusterSize - 1;
+    }
+  }
+
+  strip->show();  // Display the result
+  delay(wait);  // Internal delay for this pattern
+}
+
+uint32_t RandomClusteredDotsPattern::getColor() {
   // Generate or retrieve a color; for now, let's return a random color for demonstration
   uint8_t r = random(0, 256);
   uint8_t g = random(0, 256);
   uint8_t b = random(0, 256);
   return (r << 16) | (g << 8) | b;  // Combine into uint32_t color
+}
+
+int RandomClusteredDotsPattern::getPauseSpeed() {
+  // Return a random pause speed between 100 and 500 ms for demonstration purposes
+  return random(100, 500);
 }

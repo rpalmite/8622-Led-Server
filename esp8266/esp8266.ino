@@ -12,24 +12,21 @@
 #endif
 #include "Pattern.h"
 
-
 #define PIN 5
-#define NUMPIXELS 200
+#define NUMPIXELS 500
 #define NUM_LEDS NUMPIXELS
 #define DELAYVAL 250
-#define NUM_STRIPS 2
+#define NUM_STRIPS 1
 
 // TODO pixels not needed
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
 
 LEDStrip strip1(NUM_LEDS, PIN, 0);
-LEDStrip strip2(NUM_LEDS, PIN, 10);
+//LEDStrip strip2(NUM_LEDS, PIN, 10);
 
-LEDStrip *strips[] = { &strip1, &strip2 };
+LEDStrip *strips[] = { &strip1 /* , &strip2 */ };
 
-Pattern* patterns[3];
-
-
+Pattern* patterns[10];
 
 #include <SPI.h>
 //#include <WiFi101.h>
@@ -141,7 +138,7 @@ void setup() {
 
   // Initialize both strips
   strip1.begin();
-  strip2.begin();
+  //strip2.begin();
 
   // Create color objects
   MyColor red(255, 0, 0);
@@ -151,11 +148,17 @@ void setup() {
   //patterns[0] = new RainbowCyclePattern(strips, NUM_STRIPS);
   //patterns[1] = new ColorChasePattern(strips, NUM_STRIPS, red);
   //patterns[2] = new TheaterChasePattern(strips, NUM_STRIPS, blue);
+  //patterns[0] = new BouncingLinePattern(strips, 2, 5);  // 5 pixel line, 50ms delay
+  patterns[0] = new RandomClusteredDotsPattern(strips, 2, 5, 3);  // Density = 5, Cluster size = 3 pixels
   patterns[1] = new CylonBouncePattern(strips, 2, red, 5, 50, 100);
-  patterns[0] = new BouncingLinePattern(strips, 2, 5, 50);  // 5 pixel line, 50ms delay
+  patterns[3] = new RainbowCyclePattern(strips, NUM_STRIPS);
+  patterns[4] = new ColorChasePattern(strips, NUM_STRIPS, red);
+  patterns[5] = new TheaterChasePattern(strips, NUM_STRIPS, blue);
+  patterns[6] = new BouncingLinePattern(strips, 2, 5);  // 5 pixel line, 50ms delay
 
 }
 
+/*
 ///// PATTERNS
 void rainbow() { // modified from Adafruit example to make it a state machine
     static uint16_t j=0;
@@ -328,11 +331,11 @@ void rainbowChase(int wait) {
   }
 }
 
-/*
-theaterChase(pixels.Color(255, 0, 0), 50);  // Red theater chase
-  theaterChase(pixels.Color(0, 255, 0), 50);  // Green theater chase
-  theaterChase(pixels.Color(0, 0, 255), 50);  // Blue theater chase
-  */
+
+//theaterChase(pixels.Color(255, 0, 0), 50);  // Red theater chase
+  //theaterChase(pixels.Color(0, 255, 0), 50);  // Green theater chase
+  //theaterChase(pixels.Color(0, 0, 255), 50);  // Blue theater chase
+  
 
 void theaterChase(uint32_t old_color, int wait) {
   uint32_t color = getColor();
@@ -412,8 +415,10 @@ void bouncingLine(uint32_t color_old, int lineSize, int wait) {
     delay(wait);
   }
 }
-
+*/
 ///////// HELPERS ////////
+
+/*
 uint32_t getIntensity(uint32_t color, int intensity) {
     return color;
 }
@@ -469,11 +474,11 @@ uint32_t modifyColor(uint32_t originalColor, uint8_t addRed,uint8_t addGreen,uin
   uint32_t color = pixels.Color(r, g, b);
   return color;
 }
-
+*/
 
 ///////////////////
 // SOME OF MY PATTERNS ///
-
+/*
 void randomSpots(int size) { // size = every so many pixels randomly
   int wait = getPauseSpeed();
   uint32_t color = getColor();
@@ -488,22 +493,35 @@ void randomSpots(int size) { // size = every so many pixels randomly
   delay(wait);
   pixels.show();
 }
-
+*/
 
 /////////////////
 
 void loop() {
+  Serial.print("LED PATTERN = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
   // Run each pattern one by one
-  //patterns[0]->run(50);  // Runs the rainbow pattern, strip offsets are applied
-  //delay(1000);
 
-  patterns[1]->run(50);  // Runs the color chase pattern, strip offsets are applied
-  delay(1000);
-
-  patterns[2]->run(50);  // Runs the theater chase pattern, strip offsets are applied
-  delay(1000);
+  if (LED_PATTERN == 0) {
+    patterns[0]->run();  // Runs the rainbow pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 1) {
+    patterns[1]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 2) {
+    patterns[2]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 3) {
+    patterns[3]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else {
+    patterns[0]->run();  // Runs the rainbow pattern, strip offsets are applied
+    delay(1000);
+  }
 }
 
+/*
 void loop2() {
   if (!NO_WIFI) {
     client.loop();
@@ -571,6 +589,7 @@ void loop2() {
     }
   }
 }
+*/
 
 #endif // BE_CLIENT
 

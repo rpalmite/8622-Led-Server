@@ -15,14 +15,28 @@ class Pattern {
       : strips(stripsPointer), numStrips(numStrips) {}
 
     // Method that loops over all strips and calls the virtual applyPattern method
-    void run(int wait) {
+    void run() {
       for (int s = 0; s < numStrips; s++) {
-        applyPattern(strips[s], wait);
+        applyPattern(strips[s]);
+        delay(50);
       }
     }
 
     // Pure virtual method to apply the pattern to a single strip
-    virtual void applyPattern(LEDStrip *strip, int wait) = 0;
+    virtual void applyPattern(LEDStrip *strip) = 0;
+
+    // Utility method to generate a random color
+    virtual uint32_t getColor() {
+      uint8_t r = random(0, 256);
+      uint8_t g = random(0, 256);
+      uint8_t b = random(0, 256);
+      return (r << 16) | (g << 8) | b;  // Combine into uint32_t color
+    }
+
+    void wait(int millesecs) {
+      // TODO make wait time variable
+      delay(millesecs);  // Internal delay for this pattern
+    }
 };
 
 // MyColor class for handling color
@@ -45,7 +59,7 @@ class RainbowCyclePattern : public Pattern {
     RainbowCyclePattern(LEDStrip **stripsPointer, int numStrips)
       : Pattern(stripsPointer, numStrips) {}
 
-    void applyPattern(LEDStrip *strip, int wait) override;
+    void applyPattern(LEDStrip *strip) override;
 
   private:
     uint32_t wheel(byte WheelPos, LEDStrip *strip);
@@ -60,7 +74,7 @@ class ColorChasePattern : public Pattern {
     ColorChasePattern(LEDStrip **stripsPointer, int numStrips, MyColor c)
       : Pattern(stripsPointer, numStrips), color(c) {}
 
-    void applyPattern(LEDStrip *strip, int wait) override;
+    void applyPattern(LEDStrip *strip) override;
 };
 
 // Derived class for Theater Chase Pattern
@@ -72,9 +86,10 @@ class TheaterChasePattern : public Pattern {
     TheaterChasePattern(LEDStrip **stripsPointer, int numStrips, MyColor c)
       : Pattern(stripsPointer, numStrips), color(c) {}
 
-    void applyPattern(LEDStrip *strip, int wait) override;
+    void applyPattern(LEDStrip *strip) override;
 };
 
+// Derived class for Cylon Bounce Pattern
 class CylonBouncePattern : public Pattern {
   private:
     MyColor color;
@@ -86,24 +101,55 @@ class CylonBouncePattern : public Pattern {
     CylonBouncePattern(LEDStrip **stripsPointer, int numStrips, MyColor c, int eyeSize, int speedDelay, int returnDelay)
       : Pattern(stripsPointer, numStrips), color(c), eyeSize(eyeSize), speedDelay(speedDelay), returnDelay(returnDelay) {}
 
-    void applyPattern(LEDStrip *strip, int wait) override;
+    void applyPattern(LEDStrip *strip) override;
 };
 
+// Derived class for Bouncing Line Pattern
 class BouncingLinePattern : public Pattern {
   private:
     int lineSize;
-    int wait;
 
   public:
-    BouncingLinePattern(LEDStrip **stripsPointer, int numStrips, int lineSize, int wait)
-      : Pattern(stripsPointer, numStrips), lineSize(lineSize), wait(wait) {}
+    BouncingLinePattern(LEDStrip **stripsPointer, int numStrips, int lineSize)
+      : Pattern(stripsPointer, numStrips), lineSize(lineSize) {}
 
-    void applyPattern(LEDStrip *strip, int wait) override;
+    void applyPattern(LEDStrip *strip) override;
 
   private:
     uint32_t modifyColor(uint32_t color, int redMod, int greenMod, int blueMod);
     uint32_t getColor();
 };
 
+class RandomSpotsPattern : public Pattern {
+  private:
+    int size;
+
+  public:
+    RandomSpotsPattern(LEDStrip **stripsPointer, int numStrips, int size)
+      : Pattern(stripsPointer, numStrips), size(size) {}
+
+    void applyPattern(LEDStrip *strip) override;
+
+  private:
+    //uint32_t getColor();
+    //int getPauseSpeed();
+};
+
+
+class RandomClusteredDotsPattern : public Pattern {
+  private:
+    int density;  // Controls how frequently clusters appear
+    int clusterSize;  // Number of consecutive pixels in each cluster
+
+  public:
+    RandomClusteredDotsPattern(LEDStrip **stripsPointer, int numStrips, int density, int clusterSize)
+      : Pattern(stripsPointer, numStrips), density(density), clusterSize(clusterSize) {}
+
+    void applyPattern(LEDStrip *strip) override;
+
+  private:
+    uint32_t getColor();
+    int getPauseSpeed();
+};
 
 #endif
