@@ -10,13 +10,23 @@
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
+#include "Pattern.h"
+
+
 #define PIN 5
-#define NUMPIXELS 30
+#define NUMPIXELS 200
 #define NUM_LEDS NUMPIXELS
-
-
-Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
 #define DELAYVAL 250
+
+
+//Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
+LEDStrip strip1(NUM_LEDS, PIN);
+LEDStrip strip2(NUM_LEDS, PIN2);
+
+LEDStrip *strips[] = { &strip1, &strip2 };
+
+Pattern* patterns[3];
+
 
 
 #include <SPI.h>
@@ -37,6 +47,9 @@ int LED_PATTERN = 0;
 int NUMBER_OF_PATTERNS = 5;
 const bool NO_WIFI = true;
 int INTENSITY = 25;
+int COLOR_MODE = 2;
+uint32_t COLOR = pixels.Color(10, 0, 0);
+
 
 void connect() {
  
@@ -352,25 +365,26 @@ void bouncingLine(uint32_t color_old, int lineSize, int wait) {
     pixels.clear();
     for (int j=i; j < i+lineSize; j++) {
       if (j == i) {
-        pixels.setPixelColor(j, getColor1());
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
       } else if (j == i+lineSize-1) {
-        pixels.setPixelColor(j, getColor3());
+        pixels.setPixelColor(j, color);
       } else {
-        pixels.setPixelColor(j, getColor2());
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
       }
     }
     pixels.show();
     delay(wait);
   }
+  color = getColor();
   for (int i = pixels.numPixels()-1; i > 0 ; i--) {
     pixels.clear();
     for (int j=i; j < i+lineSize; j++) {
       if (j == i) {
-        pixels.setPixelColor(j, getColor1());
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
       } else if (j == i+lineSize-1) {
-        pixels.setPixelColor(j, getColor3());
+        pixels.setPixelColor(j, color);
       } else {
-        pixels.setPixelColor(j, getColor2());
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
       }
     }
     pixels.show();
@@ -378,6 +392,7 @@ void bouncingLine(uint32_t color_old, int lineSize, int wait) {
   }
 }
 
+///////// HELPERS ////////
 uint32_t getIntensity(uint32_t color, int intensity) {
     return color;
 }
@@ -386,8 +401,27 @@ uint32_t getColor() {
   return getColor1();
 }
 uint32_t getColor1() {
-  uint32_t color = pixels.Color(10, 0, 0);
-  return color;
+  Serial.print("COLOR MODE = ");
+  Serial.print(COLOR_MODE);
+  Serial.println("");
+
+  if (COLOR_MODE == 0) {
+    uint32_t color = pixels.Color(10, 0, 0);
+  } else if (COLOR_MODE == 1) { // RANDOM COLOR
+    int randomR = random(0, 244);
+    int randomG = random(0, 244);
+    int randomB = random(0, 244);
+    COLOR = pixels.Color(randomR, randomG, randomB);
+  } else if (COLOR_MODE == 2) {
+    static byte wheelPos = 0;
+    wheelPos+=30;
+    COLOR = Wheel(wheelPos);
+  } else if (COLOR_MODE == 3) {
+
+  } else if (COLOR_MODE == 4) {
+    
+  }
+  return COLOR;
 }
 uint32_t getColor2() {
   uint32_t color = pixels.Color(0, 25, 0);
@@ -398,8 +432,44 @@ uint32_t getColor3() {
   return color;
 }
 
+int getPauseSpeed() {
+  return 100;
+}
 
-/////////
+uint32_t modifyColor(uint32_t originalColor, uint8_t addRed,uint8_t addGreen,uint8_t addBlue) {
+  uint8_t r = (originalColor >> 16) & 0xFF;
+  uint8_t g = (originalColor >> 8) & 0xFF;
+  uint8_t b = originalColor & 0xFF;
+
+  r += (r+addRed > 0 ? addRed : 0); // TODO dont let it go neg
+  g += (r+addGreen > 0 ? addGreen : 0);// TODO dont let it go neg
+  b += (r+addBlue > 0 ? addBlue : 0);// TODO dont let it go neg
+
+  uint32_t color = pixels.Color(r, g, b);
+  return color;
+}
+
+
+///////////////////
+// SOME OF MY PATTERNS ///
+
+void randomSpots(int size) { // size = every so many pixels randomly
+  int wait = getPauseSpeed();
+  uint32_t color = getColor();
+
+  pixels.clear();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    int randomNumber = random(0, size);
+    if (randomNumber % size) {
+      pixels.setPixelColor(i, color);
+    }
+  }
+  delay(wait);
+  pixels.show();
+}
+
+
+/////////////////
 
 void loop() {
   if (!NO_WIFI) {
@@ -428,7 +498,8 @@ void loop() {
   // uint32_t color3 = pixels.Color(0, 150, 0);
 
   //uint32_t red = pixels.Color(255, 0, 0);
-  
+  LED_PATTERN = 0;
+
   if (LED_PATTERN == 0) {
     // pixels.clear();
 
@@ -444,12 +515,7 @@ void loop() {
     //FadeInOut(0xff, 0xff, 0xff); // white
     //FadeInOut(0x00, 0x00, 0xff); // blue
   } else if (LED_PATTERN == 1) {
-    pixels.clear();
-    for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, getColor());
-      pixels.show();
-      delay(DELAYVAL);
-    }
+    randomSpots(20);
   } else if (LED_PATTERN == 2) {
     CylonBounce(0xff, 0, 0, 4, 10, 50);
   } else if (LED_PATTERN == 3) {
