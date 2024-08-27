@@ -7,7 +7,7 @@
 #define PIN        5 // On Trinket or Gemma, suggest changing this to 1
 
 // How many NeoPixels are attached to the Arduino?
-#define NUMPIXELS 140 // Popular NeoPixel ring size
+#define NUMPIXELS 144 // Popular NeoPixel ring size // 144 is my test strip
 
 // When setting up the NeoPixel library, we tell it how many pixels,
 // and which pin to use to send signals. Note that for older NeoPixel
@@ -43,24 +43,14 @@ void loop() {
     growingLine();
   } else if (pattern == 2) {
     sparkle();
-    // CylonBounce(0xff, 0, 0, 4, 10, 50);
   } else if (pattern == 3) {
     rainbow();
-    // RGBLoop();
   } else if (pattern == 4) {
     cluster();
-    // FadeInOut(0xff, 0x00, 0x00); // red
-    // FadeInOut(0xff, 0xff, 0xff); // white
-    // FadeInOut(0x00, 0x00, 0xff); // blue
   } else if (pattern == 5) {
-    growingUp();
-    // Strobe(0xff, 0xff, 0xff, 10, 50, 1000);
+    fat();
   } else if (pattern == 6) {
-    growingUp();
-    //growingIn();
-    // runningLine(getColor(), 5, 100);  // White running line
-  } else if (pattern == 7) {
-    // rainbow();
+    fade();
   } else {
     bouncingLine();
   }
@@ -130,10 +120,10 @@ int getPattern() {
 }
 
 int pickPattern() {
-  int NUMBER_OF_PATTERNS = 6;
+  int NUMBER_OF_PATTERNS = 7;
   int randomNumber = random(0, NUMBER_OF_PATTERNS);
   LED_PATTERN = randomNumber;
-  LED_PATTERN = NUMBER_OF_PATTERNS-1;
+  //LED_PATTERN = NUMBER_OF_PATTERNS-1;
   Serial.print("LED PATTERN = ");
   Serial.println(LED_PATTERN);
   return LED_PATTERN;
@@ -255,7 +245,7 @@ void cluster() {
   wait();  // Internal delay for this pattern
 }
 
-void growingUp() {
+void fat() {
   Serial.println("Growing Up");
 
   uint32_t color = getColor();
@@ -309,8 +299,75 @@ void growingUp() {
   }
 }
 
-void growingIn() {
 
+uint32_t getFadeColor(int step) {
+  int numSteps = 256;
+  bool cycleColors = true;
+  
+  // Calculate fade level (from 0 to 255 and back to 0)
+  int level;
+  if (step < numSteps) {
+    level = step;  // Fading in
+  } else {
+    level = (numSteps * 2 - 1) - step;  // Fading out
+  }
+
+  // If cycling colors, calculate color based on the level
+  if (cycleColors) {
+    uint8_t r = (level + 85) % 256;
+    uint8_t g = (level + 170) % 256;
+    uint8_t b = level;
+    return (r << 16) | (g << 8) | b;  // Return the combined RGB value
+  }
+
+  // Otherwise, just fade a single color (white in this case)
+  return getColor(level, level, level);
+}
+
+uint32_t getFadeColor(int step, uint8_t red, uint8_t green, uint8_t blue) {
+  uint8_t r = (red >= step) ? red : floor(red % step);
+  uint8_t g = (green >= step) ? green : floor(green % step);
+  uint8_t b = (blue >= step) ? blue : floor(blue % step);
+  return getColor(r, g, b);
+}
+
+int ease(int step, int maxTime) {
+  return (1-(pow(floor(maxTime/step),3)))*maxTime;
+}
+
+void fade() {
+  Serial.println("Fade");
+
+  int r = random(0, 244);
+  int g = random(0, 244);
+  int b = random(0, 244);
+
+  int intensity = 0;
+
+  for (int intensity=0; intensity<256; intensity++) {
+    //uint8_t fadedR = floor(r*intensity);
+    //uint8_t fadedG = floor(g*intensity);
+    //uint8_t fadedB = floor(b*intensity);
+
+    ///uint32_t color = getColor(fadedR, fadedG, fadedB);
+    uint32_t color = getFadeColor(intensity, r, g, b);
+
+    // Serial.print("R: ");
+    // Serial.print(fadedR);
+    // Serial.print(" G: ");
+    // Serial.print(fadedG);
+    // Serial.print(" B: ");
+    // Serial.print(fadedB);
+    // Serial.println();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      setPixelColor(i, color);
+    }
+    show();
+
+    int waitTime = 2000;// ease(3000/intensity, 3000)
+    wait(waitTime);
+  }
 }
 
 
