@@ -13,20 +13,18 @@
 #include "Pattern.h"
 
 #define PIN 5
-#define NUMPIXELS 500
+#define NUMPIXELS 350
 #define NUM_LEDS NUMPIXELS
 #define DELAYVAL 250
-#define NUM_STRIPS 1
 
 // TODO pixels not needed
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
 
 LEDStrip strip1(NUM_LEDS, PIN, 0);
-//LEDStrip strip2(NUM_LEDS, PIN, 10);
-
-LEDStrip *strips[] = { &strip1 /* , &strip2 */ };
-
-Pattern* patterns[10];
+//LEDStrip strip2(NUM_LEDS, PIN, 0);
+#define NUM_STRIPS 1
+LEDStrip *strips[] = { &strip1 /*, &strip2 */  };
+Pattern* patterns[4];
 
 #include <SPI.h>
 //#include <WiFi101.h>
@@ -48,7 +46,6 @@ const bool NO_WIFI = true;
 int INTENSITY = 25;
 int COLOR_MODE = 2;
 uint32_t COLOR = pixels.Color(10, 0, 0);
-
 
 void connect() {
  
@@ -122,43 +119,47 @@ void setup() {
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
   clock_prescale_set(clock_div_1);
 #endif
-  pixels.begin();
+  //pixels.begin();
 
   pinMode(LED_BUILTIN, OUTPUT);  // Initialize the LED_BUILTIN pin as an output
 
-  int randomNumber = random(0, NUMBER_OF_PATTERNS);
-  LED_PATTERN = randomNumber;
-
-  Serial.print("First Pattern = ");
-  Serial.print(LED_PATTERN);
-  Serial.println("");
-
-
-  // PATTERNS!!!!
+  /*
+  // C++ PATTERNS!!!!
 
   // Initialize both strips
-  strip1.begin();
+  //strip1.begin();
   //strip2.begin();
+  for (int i=0;i<NUM_STRIPS;i++) {
+    LEDStrip *strip = strips[i];
+    strip->begin();
+  }
 
   // Create color objects
   MyColor red(255, 0, 0);
   MyColor blue(0, 0, 255);
+  MyColor green(0, 255, 0);
 
   // Create different pattern objects using polymorphism, passing the array of strips
-  //patterns[0] = new RainbowCyclePattern(strips, NUM_STRIPS);
-  //patterns[1] = new ColorChasePattern(strips, NUM_STRIPS, red);
-  //patterns[2] = new TheaterChasePattern(strips, NUM_STRIPS, blue);
-  //patterns[0] = new BouncingLinePattern(strips, 2, 5);  // 5 pixel line, 50ms delay
-  patterns[0] = new RandomClusteredDotsPattern(strips, 2, 5, 3);  // Density = 5, Cluster size = 3 pixels
-  patterns[1] = new CylonBouncePattern(strips, 2, red, 5, 50, 100);
-  patterns[3] = new RainbowCyclePattern(strips, NUM_STRIPS);
-  patterns[4] = new ColorChasePattern(strips, NUM_STRIPS, red);
-  patterns[5] = new TheaterChasePattern(strips, NUM_STRIPS, blue);
-  patterns[6] = new BouncingLinePattern(strips, 2, 5);  // 5 pixel line, 50ms delay
 
+  NUMBER_OF_PATTERNS = 1;
+  patterns[0] = new RandomClusteredDotsPattern(strips, NUM_STRIPS, 5, 3);  // Density = 5, Cluster size = 3 pixels
+  patterns[1] = new CylonBouncePattern(strips, NUM_STRIPS, blue, 15, 10, 100);
+  patterns[2] = new RainbowCyclePattern(strips, NUM_STRIPS);
+  patterns[3] = new ColorChasePattern(strips, NUM_STRIPS, red);
+  patterns[4] = new TheaterChasePattern(strips, NUM_STRIPS, green);
+  patterns[5] = new BouncingLinePattern(strips, NUM_STRIPS, 5);  // 5 pixel line, 50ms delay
+  patterns[6] = new RandomClusteredDotsPattern(strips, NUM_STRIPS, 10, 4);  // Density = 5, Cluster size = 3 pixels
+  */
+
+  int randomNumber = random(0, NUMBER_OF_PATTERNS);
+  LED_PATTERN = randomNumber;
+
+  Serial.print("Random Pattern Chosen = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
 }
 
-/*
+
 ///// PATTERNS
 void rainbow() { // modified from Adafruit example to make it a state machine
     static uint16_t j=0;
@@ -415,10 +416,10 @@ void bouncingLine(uint32_t color_old, int lineSize, int wait) {
     delay(wait);
   }
 }
-*/
+
 ///////// HELPERS ////////
 
-/*
+
 uint32_t getIntensity(uint32_t color, int intensity) {
     return color;
 }
@@ -427,12 +428,13 @@ uint32_t getColor() {
   return getColor1();
 }
 uint32_t getColor1() {
+  COLOR_MODE = 0;
   Serial.print("COLOR MODE = ");
   Serial.print(COLOR_MODE);
   Serial.println("");
 
   if (COLOR_MODE == 0) {
-    uint32_t color = pixels.Color(10, 0, 0);
+    uint32_t color = pixels.Color(244, 0, 0);
   } else if (COLOR_MODE == 1) { // RANDOM COLOR
     int randomR = random(0, 244);
     int randomG = random(0, 244);
@@ -474,11 +476,11 @@ uint32_t modifyColor(uint32_t originalColor, uint8_t addRed,uint8_t addGreen,uin
   uint32_t color = pixels.Color(r, g, b);
   return color;
 }
-*/
+
 
 ///////////////////
 // SOME OF MY PATTERNS ///
-/*
+
 void randomSpots(int size) { // size = every so many pixels randomly
   int wait = getPauseSpeed();
   uint32_t color = getColor();
@@ -493,11 +495,11 @@ void randomSpots(int size) { // size = every so many pixels randomly
   delay(wait);
   pixels.show();
 }
-*/
+
 
 /////////////////
 
-void loop() {
+void loop3() {
   Serial.print("LED PATTERN = ");
   Serial.print(LED_PATTERN);
   Serial.println("");
@@ -521,8 +523,8 @@ void loop() {
   }
 }
 
-/*
-void loop2() {
+
+void loop() {
   if (!NO_WIFI) {
     client.loop();
 
@@ -538,33 +540,15 @@ void loop2() {
       client.publish("/hello", "world");
     }
   }
-  
-  Serial.print("Loop Pattern = " + LED_PATTERN);
+
+  LED_PATTERN = 3;
+
+  Serial.print("Led Pattern = ");
   Serial.print(LED_PATTERN);
   Serial.println("");
-  //INTENSITY
-  
-  // uint32_t color1 = pixels.Color(0, 50, 0);
-  // uint32_t color2 = pixels.Color(0, 150, 0);
-  // uint32_t color3 = pixels.Color(0, 150, 0);
-
-  //uint32_t red = pixels.Color(255, 0, 0);
-  LED_PATTERN = 0;
 
   if (LED_PATTERN == 0) {
-    // pixels.clear();
-
-    // digitalWrite(LED_BUILTIN, LOW);  // Turn the LED on (Note that LOW is the voltage level
-    // for(int i=0; i<NUMPIXELS; i++) {
-    //   pixels.setPixelColor(i, pixels.Color(75, 25, 25));
-    //   pixels.show();
-    //   delay(DELAYVAL);
-    // }
-    // digitalWrite(LED_BUILTIN, HIGH);
-   //rainbow();
     bouncingLine(getColor(), 5, 50); // Red chase
-    //FadeInOut(0xff, 0xff, 0xff); // white
-    //FadeInOut(0x00, 0x00, 0xff); // blue
   } else if (LED_PATTERN == 1) {
     randomSpots(20);
   } else if (LED_PATTERN == 2) {
@@ -579,6 +563,8 @@ void loop2() {
     Strobe(0xff, 0xff, 0xff, 10, 50, 1000);
   } else if (LED_PATTERN == 6) {
     runningLine(getColor(), 5, 100);  // White running line
+  } else if (LED_PATTERN == 7) {
+    rainbow();
   } else {
     pixels.clear();
 
@@ -589,7 +575,7 @@ void loop2() {
     }
   }
 }
-*/
+
 
 #endif // BE_CLIENT
 

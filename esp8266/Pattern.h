@@ -16,7 +16,10 @@ class Pattern {
 
     // Method that loops over all strips and calls the virtual applyPattern method
     void run() {
+      Serial.println("Running pattern");
       for (int s = 0; s < numStrips; s++) {
+        Serial.print("Strip #");
+        Serial.println(s);
         applyPattern(strips[s]);
         delay(50);
       }
@@ -33,10 +36,23 @@ class Pattern {
       return (r << 16) | (g << 8) | b;  // Combine into uint32_t color
     }
 
-    void wait(int millesecs) {
+    virtual void wait(int millesecs) {
       // TODO make wait time variable
       delay(millesecs);  // Internal delay for this pattern
     }
+
+    // virtual wheel(int WheelPos) {
+    //   WheelPos = 255 - WheelPos;
+    //     if (WheelPos < 85) {
+    //       return strip->Color(255 - WheelPos * 3, 0, WheelPos * 3);
+    //     }
+    //     if (WheelPos < 170) {
+    //       WheelPos -= 85;
+    //       return strip->Color(0, WheelPos * 3, 255 - WheelPos * 3);
+    //     }
+    //     WheelPos -= 170;
+    //     return strip->Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+    // }
 };
 
 // MyColor class for handling color

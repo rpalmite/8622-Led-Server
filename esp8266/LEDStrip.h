@@ -13,6 +13,9 @@ class LEDStrip {
     LEDStrip(int numLEDs, int pin, int startOffset = 0) 
       : offset(startOffset) {
       strip = new Adafruit_NeoPixel(numLEDs, pin, NEO_GRB + NEO_KHZ800);
+      Serial.println("adafruit strip created");
+      Serial.print("number of leds: ");
+      Serial.println(strip->numPixels());
     }
 
     // Initialize the LED strip

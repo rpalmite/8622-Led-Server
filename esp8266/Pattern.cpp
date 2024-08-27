@@ -27,7 +27,9 @@ uint32_t RainbowCyclePattern::wheel(byte WheelPos, LEDStrip *strip) {
 
 // Implementation of ColorChasePattern
 void ColorChasePattern::applyPattern(LEDStrip *strip) {
-  uint32_t colorValue = color.toUint32();
+  Serial.println("Running pattern ColorChasePattern");
+
+  uint32_t colorValue = getColor();
   for (int i = 0; i < strip->numPixels(); i++) {
     strip->setPixelColor(i, colorValue);
     strip->show();
@@ -203,28 +205,49 @@ void RandomSpotsPattern::applyPattern(LEDStrip *strip) {
 }
 
 void RandomClusteredDotsPattern::applyPattern(LEDStrip *strip) {
+  Serial.println("Applying pattern RandomClusteredDotsPattern");
+
   int wait = getPauseSpeed();
   uint32_t color = getColor();
+  Serial.print("Color=");
+  Serial.println(color);
 
   strip->clear();  // Clear the strip
+  Serial.println("strip cleared");
+
+  Serial.print("looping over this many pixels: ");
+  Serial.print(strip->numPixels());
+  Serial.println();
 
   for (int i = 0; i < strip->numPixels(); i++) {
+    Serial.println("1");
+
     // Determine if a cluster starts here based on density
     if (random(0, density) == 0) {
+      Serial.println("2");
+
       // Light up a cluster of consecutive pixels
       for (int j = 0; j < clusterSize && (i + j) < strip->numPixels(); j++) {
+        Serial.println("3");
         strip->setPixelColor(i + j, color);
+        Serial.println("4");
       }
       // Skip over the pixels in the cluster
       i += clusterSize - 1;
     }
   }
 
+  Serial.println("5");
+
   strip->show();  // Display the result
+  Serial.println("RandomClusteredDotsPattern applied");
+
   delay(wait);  // Internal delay for this pattern
 }
 
 uint32_t RandomClusteredDotsPattern::getColor() {
+  Serial.println("RandomClusteredDotsPattern::getting color");
+
   // Generate or retrieve a color; for now, let's return a random color for demonstration
   uint8_t r = random(0, 256);
   uint8_t g = random(0, 256);
@@ -233,6 +256,8 @@ uint32_t RandomClusteredDotsPattern::getColor() {
 }
 
 int RandomClusteredDotsPattern::getPauseSpeed() {
+  Serial.println("RandomClusteredDotsPattern::pause speed");
+
   // Return a random pause speed between 100 and 500 ms for demonstration purposes
   return random(100, 500);
 }
