@@ -1,458 +1,817 @@
-// THIS IS THE ARDUINO IDE VERSION
 
+// NEVER DEFINE BOTH
+#define BE_CLIENT
+//#define BE_SERVER
+
+#ifdef BE_CLIENT
+
+// SEARCH adafriut neopixel
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
+#include "Pattern.h"
+
+#define PIN 5
+#define NUMPIXELS 350
+#define NUM_LEDS NUMPIXELS
+#define DELAYVAL 250
+
+// TODO pixels not needed
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
+
+LEDStrip strip1(NUM_LEDS, PIN, 0);
+//LEDStrip strip2(NUM_LEDS, PIN, 0);
+#define NUM_STRIPS 1
+LEDStrip *strips[] = { &strip1 /*, &strip2 */  };
+Pattern* patterns[4];
+
+#include <SPI.h>
+//#include <WiFi101.h>
+#include <ESP8266WiFi.h>
+#include <MQTT.h>
+
+const char ssid[] = "sloughnet";
+const char pass[] = "homebase";
+
+WiFiClient net;
+MQTTClient client;
+
+unsigned int lastMillis = 0;
+
+//const int LED_PIN = 2;
+int LED_PATTERN = 0;
+int NUMBER_OF_PATTERNS = 5;
+const bool NO_WIFI = true;
+int INTENSITY = 25;
+int COLOR_MODE = 2;
+uint32_t COLOR = pixels.Color(10, 0, 0);
+
+void connect() {
+ 
+  Serial.print("Connecting.");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  
+  Serial.println("WiFi connected.");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  
+  Serial.print("\nconnecting to broker...");
+  while (!client.connect("arduino", "", "")) {
+    Serial.print(".");
+    delay(1000);
+  }
+
+  Serial.println("\nconnected!");
+
+  client.subscribe("/hello");
+  // client.unsubscribe("/hello");
+
+  client.subscribe("/led/pattern");
+}
+
+void messageReceived(String &topic, String &payload) {
+  Serial.println("incoming: " + topic + " - " + payload);
+
+  // Note: Do not use the client in the callback to publish, subscribe or
+  // unsubscribe as it may cause deadlocks when other things arrive while
+  // sending and receiving acknowledgments. Instead, change a global variable,
+  // or push to a queue and handle it in the loop after calling `client.loop()`.
+  if (payload.equals("0")) {
+    LED_PATTERN = 0;
+  } else if (payload.equals("1")) {
+    LED_PATTERN = 1;
+  } else if (payload.equals("2")) {
+    LED_PATTERN = 2;
+  } else if (payload.equals("3")) {
+    LED_PATTERN = 3;
+  } else if (payload.equals("4")) {
+    LED_PATTERN = 4;
+  } else if (payload.equals("5")) {
+    LED_PATTERN = 5;
+  } else {
+    LED_PATTERN = LED_PATTERN++ % 5;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  Serial.println("Client started");
+
+  if (!NO_WIFI) {
+    WiFi.begin(ssid, pass);
+
+    // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported
+    // by Arduino. You need to set the IP address directly.
+    client.begin("public.cloud.shiftr.io", net);
+    client.onMessage(messageReceived);
+
+    connect();
+  }
+
+//led strip
+#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
+  clock_prescale_set(clock_div_1);
+#endif
+  //pixels.begin();
+
+  pinMode(LED_BUILTIN, OUTPUT);  // Initialize the LED_BUILTIN pin as an output
+
+  /*
+  // C++ PATTERNS!!!!
+
+  // Initialize both strips
+  //strip1.begin();
+  //strip2.begin();
+  for (int i=0;i<NUM_STRIPS;i++) {
+    LEDStrip *strip = strips[i];
+    strip->begin();
+  }
+
+  // Create color objects
+  MyColor red(255, 0, 0);
+  MyColor blue(0, 0, 255);
+  MyColor green(0, 255, 0);
+
+  // Create different pattern objects using polymorphism, passing the array of strips
+
+  NUMBER_OF_PATTERNS = 1;
+  patterns[0] = new RandomClusteredDotsPattern(strips, NUM_STRIPS, 5, 3);  // Density = 5, Cluster size = 3 pixels
+  patterns[1] = new CylonBouncePattern(strips, NUM_STRIPS, blue, 15, 10, 100);
+  patterns[2] = new RainbowCyclePattern(strips, NUM_STRIPS);
+  patterns[3] = new ColorChasePattern(strips, NUM_STRIPS, red);
+  patterns[4] = new TheaterChasePattern(strips, NUM_STRIPS, green);
+  patterns[5] = new BouncingLinePattern(strips, NUM_STRIPS, 5);  // 5 pixel line, 50ms delay
+  patterns[6] = new RandomClusteredDotsPattern(strips, NUM_STRIPS, 10, 4);  // Density = 5, Cluster size = 3 pixels
+  */
+
+  int randomNumber = random(0, NUMBER_OF_PATTERNS);
+  LED_PATTERN = randomNumber;
+
+  Serial.print("Random Pattern Chosen = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
+}
+
+
+///// PATTERNS
+void rainbow() { // modified from Adafruit example to make it a state machine
+    static uint16_t j=0;
+    for(int i=0; i<pixels.numPixels(); i++) {
+      pixels.setPixelColor(i, Wheel((i+j) & 255));
+    }
+    pixels.show();
+    j++;
+    if(j >= 256) j=0;
+    //lastUpdate = millis(); // time for next change to the display
+}
+void wipe(){ // clear all LEDs
+     for(int i=0;i<pixels.numPixels();i++){
+          pixels.setPixelColor(i, pixels.Color(0,0,0));
+       }
+}
+
+// rainbow wheel of colors
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return pixels.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return pixels.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+/////
+void showStrip() {
+ #ifdef ADAFRUIT_NEOPIXEL_H
+   // NeoPixel
+   pixels.show();
+ #endif
+ #ifndef ADAFRUIT_NEOPIXEL_H
+   // FastLED
+   FastLED.show();
+ #endif
+}
+
+void setPixel(int Pixel, byte red, byte green, byte blue) {
+ #ifdef ADAFRUIT_NEOPIXEL_H
+   // NeoPixel
+   pixels.setPixelColor(Pixel, pixels.Color(red, green, blue));
+ #endif
+ #ifndef ADAFRUIT_NEOPIXEL_H
+   // FastLED
+   leds[Pixel].r = red;
+   leds[Pixel].g = green;
+   leds[Pixel].b = blue;
+ #endif
+}
+
+void setAll(byte red, byte green, byte blue) {
+  for(int i = 0; i < NUM_LEDS; i++ ) {
+    setPixel(i, red, green, blue);
+  }
+  showStrip();
+}
+
+void CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
+
+  for(int i = 0; i < NUM_LEDS-EyeSize-2; i++) {
+    setAll(0,0,0);
+    setPixel(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      setPixel(i+j, red, green, blue);
+    }
+    setPixel(i+EyeSize+1, red/10, green/10, blue/10);
+    showStrip();
+    delay(SpeedDelay);
+  }
+
+  delay(ReturnDelay);
+
+  for(int i = NUM_LEDS-EyeSize-2; i > 0; i--) {
+    setAll(0,0,0);
+    setPixel(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      setPixel(i+j, red, green, blue);
+    }
+    setPixel(i+EyeSize+1, red/10, green/10, blue/10);
+    showStrip();
+    delay(SpeedDelay);
+  }
+ 
+  delay(ReturnDelay);
+}
+void RGBLoop(){
+  for(int j = 0; j < 3; j++ ) {
+    // Fade IN
+    for(int k = 0; k < 256; k++) {
+      switch(j) {
+        case 0: setAll(k,0,0); break;
+        case 1: setAll(0,k,0); break;
+        case 2: setAll(0,0,k); break;
+      }
+      showStrip();
+      delay(3);
+    }
+    // Fade OUT
+    for(int k = 255; k >= 0; k--) {
+      switch(j) {
+        case 0: setAll(k,0,0); break;
+        case 1: setAll(0,k,0); break;
+        case 2: setAll(0,0,k); break;
+      }
+      showStrip();
+      delay(3);
+    }
+  }
+}
+void FadeInOut(byte red, byte green, byte blue){
+  float r, g, b;
+     
+  for(int k = 0; k < 256; k=k+1) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    showStrip();
+  }
+     
+  for(int k = 255; k >= 0; k=k-2) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    showStrip();
+  }
+}
+  
+
+void Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause){
+  for(int j = 0; j < StrobeCount; j++) {
+    setAll(red,green,blue);
+    showStrip();
+    delay(FlashDelay);
+    setAll(0,0,0);
+    showStrip();
+    delay(FlashDelay);
+  }
+ 
+ delay(EndPause);
+}
+/////////////////
+/// GPT PATTERNS ////
+
+// Simple chase function
+void chase(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color);    // Set the current LED to the color
+    pixels.show();                     // Update the strip to show the color
+    delay(wait);                      // Wait for a while
+    pixels.setPixelColor(i, 0);        // Turn off the current LED
+  }
+}
+// Rainbow chase function
+void rainbowChase(int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    int color = Wheel((i * 256 / pixels.numPixels()) & 255); // Calculate rainbow color
+    pixels.setPixelColor(i, color);
+    pixels.show();
+    delay(wait);
+    pixels.setPixelColor(i, 0); // Turn off the current LED
+  }
+}
+
+
+//theaterChase(pixels.Color(255, 0, 0), 50);  // Red theater chase
+  //theaterChase(pixels.Color(0, 255, 0), 50);  // Green theater chase
+  //theaterChase(pixels.Color(0, 0, 255), 50);  // Blue theater chase
+  
+
+void theaterChase(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int j = 0; j < 10; j++) {  // Run the loop a few times
+    for (int q = 0; q < 3; q++) { 
+      for (int i = 0; i < pixels.numPixels(); i = i + 3) {
+        pixels.setPixelColor(i + q, color);  // Turn on every third pixel
+      }
+      pixels.show();
+      delay(wait);
+      for (int i = 0; i < pixels.numPixels(); i = i + 3) {
+        pixels.setPixelColor(i + q, 0);      // Turn off every third pixel
+      }
+    }
+  }
+}
+
+  //runningDot(pixels.Color(255, 255, 255), 100);  // White running dot
+
+void runningDot(uint32_t old_color, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    pixels.setPixelColor(i, color);
+    pixels.show();
+    delay(wait);
+  }
+}
+
+void runningLine(uint32_t color_old, int lineSize, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, getColor1());
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, getColor3());
+      } else {
+        pixels.setPixelColor(j, getColor2());
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+}
+
+void bouncingLine(uint32_t color_old, int lineSize, int wait) {
+  uint32_t color = getColor();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, color);
+      } else {
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+  color = getColor();
+  for (int i = pixels.numPixels()-1; i > 0 ; i--) {
+    pixels.clear();
+    for (int j=i; j < i+lineSize; j++) {
+      if (j == i) {
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
+      } else if (j == i+lineSize-1) {
+        pixels.setPixelColor(j, color);
+      } else {
+        pixels.setPixelColor(j, modifyColor(color, -10, -10, -10));
+      }
+    }
+    pixels.show();
+    delay(wait);
+  }
+}
+
+///////// HELPERS ////////
+
+
+uint32_t getIntensity(uint32_t color, int intensity) {
+    return color;
+}
+
+uint32_t getColor() {
+  return getColor1();
+}
+uint32_t getColor1() {
+  COLOR_MODE = 0;
+  Serial.print("COLOR MODE = ");
+  Serial.print(COLOR_MODE);
+  Serial.println("");
+
+  if (COLOR_MODE == 0) {
+    uint32_t color = pixels.Color(244, 0, 0);
+  } else if (COLOR_MODE == 1) { // RANDOM COLOR
+    int randomR = random(0, 244);
+    int randomG = random(0, 244);
+    int randomB = random(0, 244);
+    COLOR = pixels.Color(randomR, randomG, randomB);
+  } else if (COLOR_MODE == 2) {
+    static byte wheelPos = 0;
+    wheelPos+=30;
+    COLOR = Wheel(wheelPos);
+  } else if (COLOR_MODE == 3) {
+
+  } else if (COLOR_MODE == 4) {
+    
+  }
+  return COLOR;
+}
+uint32_t getColor2() {
+  uint32_t color = pixels.Color(0, 25, 0);
+  return color;
+}
+uint32_t getColor3() {
+  uint32_t color = pixels.Color(10, 0, 0);
+  return color;
+}
+
+int getPauseSpeed() {
+  return 100;
+}
+
+uint32_t modifyColor(uint32_t originalColor, uint8_t addRed,uint8_t addGreen,uint8_t addBlue) {
+  uint8_t r = (originalColor >> 16) & 0xFF;
+  uint8_t g = (originalColor >> 8) & 0xFF;
+  uint8_t b = originalColor & 0xFF;
+
+  r += (r+addRed > 0 ? addRed : 0); // TODO dont let it go neg
+  g += (r+addGreen > 0 ? addGreen : 0);// TODO dont let it go neg
+  b += (r+addBlue > 0 ? addBlue : 0);// TODO dont let it go neg
+
+  uint32_t color = pixels.Color(r, g, b);
+  return color;
+}
+
+
+///////////////////
+// SOME OF MY PATTERNS ///
+
+void randomSpots(int size) { // size = every so many pixels randomly
+  int wait = getPauseSpeed();
+  uint32_t color = getColor();
+
+  pixels.clear();
+  for (int i = 0; i < pixels.numPixels(); i++) {
+    int randomNumber = random(0, size);
+    if (randomNumber % size) {
+      pixels.setPixelColor(i, color);
+    }
+  }
+  delay(wait);
+  pixels.show();
+}
+
+
+/////////////////
+
+void loop3() {
+  Serial.print("LED PATTERN = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
+  // Run each pattern one by one
+
+  if (LED_PATTERN == 0) {
+    patterns[0]->run();  // Runs the rainbow pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 1) {
+    patterns[1]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 2) {
+    patterns[2]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else if (LED_PATTERN == 3) {
+    patterns[3]->run();  // Runs the color chase pattern, strip offsets are applied
+    delay(1000);
+  } else {
+    patterns[0]->run();  // Runs the rainbow pattern, strip offsets are applied
+    delay(1000);
+  }
+}
+
+
+void loop() {
+  if (!NO_WIFI) {
+    client.loop();
+
+    if (!client.connected()) {
+      connect();
+    }
+  }
+
+  if (!NO_WIFI) {
+    // publish a message roughly every second.
+    if (millis() - lastMillis > 1000) {
+      lastMillis = millis();
+      client.publish("/hello", "world");
+    }
+  }
+
+  LED_PATTERN = 3;
+
+  Serial.print("Led Pattern = ");
+  Serial.print(LED_PATTERN);
+  Serial.println("");
+
+  if (LED_PATTERN == 0) {
+    bouncingLine(getColor(), 5, 50); // Red chase
+  } else if (LED_PATTERN == 1) {
+    randomSpots(20);
+  } else if (LED_PATTERN == 2) {
+    CylonBounce(0xff, 0, 0, 4, 10, 50);
+  } else if (LED_PATTERN == 3) {
+    RGBLoop();
+  } else if (LED_PATTERN == 4) {
+    FadeInOut(0xff, 0x00, 0x00); // red
+    FadeInOut(0xff, 0xff, 0xff); // white
+    FadeInOut(0x00, 0x00, 0xff); // blue
+  } else if (LED_PATTERN == 5) {
+    Strobe(0xff, 0xff, 0xff, 10, 50, 1000);
+  } else if (LED_PATTERN == 6) {
+    runningLine(getColor(), 5, 100);  // White running line
+  } else if (LED_PATTERN == 7) {
+    rainbow();
+  } else {
+    pixels.clear();
+
+    for(int i=0; i<NUMPIXELS; i++) {
+      pixels.setPixelColor(i, getColor());
+      pixels.show();
+      delay(DELAYVAL);
+    }
+  }
+}
+
+
+#endif // BE_CLIENT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#ifdef BE_SERVER
+
+// MainArduinoSketch.ino
 #include <ESP8266WiFi.h>
 // https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html
 #include <vector>
-//#include <algorithm>
-//#include "NetDiscovery.h"
-#include "uMQTTBroker.h"
+#include "easymqtt.h"
+#include "PinInfo.h"
+#include "PinArray.h"
+#include "MQTT.h"
+//#include "wifi.h"
 
 const bool become_access_point = 1;
 
-const char* ssid = "sloughnet";
-const char* password = "homebase";
-//const char* ssid = "CenturyLink8158";
-//const char* password = "r5hpj9j9st5bbr";
+const char *ssid = "beatnet";
+const char *password = "password";
 
-// Set up a web server on port 80
 WiFiServer server(80);
-
-// HTTP Variable to store requests
 String header;
 
+myMQTTBroker myBroker;
 
-///////////// EASY MQTT //////////
+char ap_ssid[] = "beatnet";
+char ap_pass[] = "password";
 
-/*
- * Custom broker class with overwritten callback functions
- */
-class myMQTTBroker: public uMQTTBroker
-{
-public:
-    virtual bool onConnect(IPAddress addr, uint16_t client_count) {
-      Serial.println(addr.toString()+" connected");
-      return true;
-    }
+//MQTT_Client mqttClient;
 
-    virtual void onDisconnect(IPAddress addr, String client_id) {
-      Serial.println(addr.toString()+" ("+client_id+") disconnected");
-    }
-
-    virtual bool onAuth(String username, String password, String client_id) {
-      Serial.println("Username/Password/ClientId: "+username+"/"+password+"/"+client_id);
-      return true;
-    }
-    
-    virtual void onData(String topic, const char *data, uint32_t length) {
-      char data_str[length+1];
-      os_memcpy(data_str, data, length);
-      data_str[length] = '\0';
-      String dataString = (String)data_str;
-
-      Serial.println("received topic '"+topic+"' with data '"+(String)data_str+"'");
-      //printClients();
-
-      if (topic == "beat") {
-        if (dataString == "kick") {
-           Serial.println("blue");
-           pins.get(0).turnOff();
-           pins.get(1).turnOff();
-           pins.get(2).turnOn();
-           delay(1000);
-           pins.get(2).turnOff();
-        }
-      }
-    }
-
-    // Sample for the usage of the client info methods
-
-    virtual void printClients() {
-      for (int i = 0; i < getClientCount(); i++) {
-        IPAddress addr;
-        String client_id;
-         
-        getClientAddr(i, addr);
-        getClientId(i, client_id);
-        Serial.println("Client "+client_id+" on addr: "+addr.toString());
-      }
-    }
-};
-
-
-myMQTTBroker myBroker; // TODO rename mqttBroker
-
-////// EASY ACCESS POINT //////
-
-char ap_ssid[] = "beatnet";     // your network SSID (name)
-char ap_pass[] = "password"; // your network password
-
-void startWiFiAP()
-{
+void startWiFiAP() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ap_ssid, ap_pass);
   Serial.println("AP started");
   Serial.println("IP address: " + WiFi.softAPIP().toString());
 }
 
-////////////// EASY IO ///////////////
+PinArray pins;
 
-// TODO class PinArray
-// set transition speed
-// crawl
-// ant walk
-// christmas lights
+int blue = 0;
+int green = 1;
+int red = 2;
+int color = 0;
 
-// TODO rename Pin
-class PinInfo {
-public:
-  // Constructor // TODO rename pinNumber to just number // TODO should pin number and pin mode be uint8_t ???
-  PinInfo(String name, int number, int inputOutputMode, boolean isDigitalPin) {
-    pinName = name;
-    pinNumber = number;
-    isLow = true;
-    isOutput = (inputOutputMode == OUTPUT);
-    isDigital = isDigitalPin;
-    id = random(0, 1000);
-    initialize();
-  }
-
-  // Static method to create a new PinInfo instance
-  static PinInfo create(String name, int number, int inputOutputMode, boolean isDigitalPin) {
-    return PinInfo(name, number, inputOutputMode, isDigitalPin);
-  }
-
-  void initialize() {
-    if (isOutput) {
-      pinMode(pinNumber, OUTPUT);
-    } else {
-      pinMode(pinNumber, INPUT);
-    }
-    if (isDigital) {
-      turnOn();
-    } else {
-
-    }
-  }
-
-  // Member function to update the state of the pin
-  //void updateState() {
-  //  digitalRead(pinNumber);
-  //}
-
-  // Member function to get the pin name
-  String getPinName() {
-    return pinName;
-  }
-
-  boolean isOn() {
-    return !isLow;
-  }
-
-  boolean isOff() {
-    return isLow;
-  }
-
-  // TODO keep track if analog pin
-  void turnOn() {
-    Serial.println("Pin (" + String(id) + ") " + pinName + " (gpio " + pinNumber + ") on");
-    // TODO if (isDigital) { } else if (analiog) { analogWrite() }
-    digitalWrite(pinNumber, HIGH);
-    isLow = false;
-  }
-
-  // TODO keep track if analog pin
-  void turnOff() {
-    Serial.println("Pin (" + String(id) + ") " + pinName + " (gpio " + pinNumber + ") off");
-    digitalWrite(pinNumber, LOW);
-    isLow = true;
-  }
-
-  void toggle() {
-    if (isOn()) {
-      turnOff();
-    } else {
-      turnOn();
-    }
-  }
-
-  void setValue(int analogVal) {
-    Serial.println("Pin " + pinName + "(gpio " + pinNumber + ") set to " + analogVal);
-    analogWrite(pinNumber, analogVal);
-    if (analogVal > 0) { // TODO single line this statement
-      isLow = false;
-    } else {
-      isLow = true;
-    }
-    //return 0;
-  }
-
-  String getName() {
-    return pinName;
-  }
-
-  int getNumber() {
-    return pinNumber;
-  }
-
-private:
-  String pinName;
-  int pinNumber;
-  boolean isLow;
-  boolean isOutput;
-  boolean isDigital;
-  int value;
-  int id;
-};
-
-class PinArray {
-public:
-    
-  std::vector<PinInfo> pins;
-  std::vector<int> states;
-
-  PinArray() {
-      
-  }
-
-  void addPin(const PinInfo& pin) {
-      pins.push_back(pin);
-      states.push_back(0);
-  }
-
-  int size() {
-    int sizeOfPinArray = pins.size();
-    return sizeOfPinArray;
-  }
-
-  PinInfo get(int position) {
-    if (position < size()) {
-        return pins[position];
-    }
-    // TODO handle the case where the position is out of bounds
-    // or return a default PinInfo object in such cases.
-    return PinInfo::create("", 0, 0, true);
-  }
-  
-  void push(const PinInfo& newPin) {
-    addPin(newPin);
-  }
-  
-  PinArray getPinsNear(int position, int numberOfPins, boolean loopAround) {
-    PinArray pinsNearPosition = PinArray();
-
-    for (int i=0; i<numberOfPins; i++) {
-      int positionOfPinToFetch = (position+i) % pins.size(); // TODO possible off by one error (might need to be size - 1)
-      PinInfo pinToFetech = pins[positionOfPinToFetch];
-      pinsNearPosition.addPin(pinToFetech);
-    }
-
-    return pinsNearPosition;
-  }
-
-private:
-  int currentPosition = 0;
-};
-
-
-
-// TODO rename RandomPinEffect
-class RandomPinEffect {
-  public:
-    void doEffect(PinArray pins, int step) {
-      // TODO for safety later
-      // int randomNumber = min(RAND_MAX, pins.size());
-      int randomNumber = random(1, pins.size());
-      PinInfo randomPin = pins.get(randomNumber);
-      randomPin.turnOn();
-    }
-};
-
-// TODO rename RandomPinEffect
-class RainbowAntEffect {
-  int defaultEffectSize = 5;
-  public:
-    // void selection(); // aka get pins
-    // void transition(); // aka get old pins (step-1)
-    // void apply(); // aka change color
-    void doEffect(PinArray pins, int step) {
-      int effectSize = min(defaultEffectSize+1, pins.size()); // +1 for last pin to turn off
-      
-      if (effectSize < 1) {
-        return;
-      }
-
-      PinArray pinArray = pins.getPinsNear(step, effectSize, true);
-      pinArray.get(0).turnOff();
-      for (int i=1; i<effectSize; i++) {
-        pinArray.get(i).turnOn();
-      }
-    }
-};
-
-
-PinArray pins = PinArray();
-
-
-// TODO is this still needed?
-const int led14 = 14;  // D14?
-
-// TODO put this inside a 
-int getParameterValue(String queryString, String parameterName) {
-  // Find the position of the parameter name in the query string
-  int paramPos = queryString.indexOf(parameterName);
-
-  // Check if the parameter is found in the query string
-  if (paramPos != -1) {
-    // Find the position of the equal sign after the parameter name
-    int equalPos = queryString.indexOf("=", paramPos);
-
-    // Find the position of the ampersand or end of the string after the equal sign
-    int ampersandPos = queryString.indexOf("&", equalPos);
-
-    // Extract the substring between the equal sign and the ampersand (or end of the string)
-    String paramValue = queryString.substring(equalPos + 1, ampersandPos);
-
-    // Convert the parameter value to an integer
-    return paramValue.toInt();
+void onBeat(String topic, String data) {
+  Serial.println("$$$$ blue $$$$");
+  if (color == blue) {
+    pins.get(0).turnOff();
+    pins.get(1).turnOff();
+    pins.get(2).turnOn();
+    color++;
+  } else if (color == green) {
+    pins.get(0).turnOn();
+    pins.get(1).turnOff();
+    pins.get(2).turnOff();
+    color++;
+  } else if (color == red) {
+    pins.get(0).turnOff();
+    pins.get(1).turnOn();
+    pins.get(2).turnOff();
+    color++;
   } else {
-    // Return a default value if the parameter is not found
-    return -1;
+    pins.get(0).turnOff();
+    pins.get(1).turnOff();
+    pins.get(2).turnOff();
+    color = 0;
+  }
+
+  //delay(1000);
+  //pins.get(2).turnOff();
+}
+
+///// MQTT CLIENT //////
+
+#define MQTT_KEEPALIVE    120  /*second*/
+#define MQTT_CLEAN_SESSION 1
+MQTT_Client mqttClient;
+
+static void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
+{
+  if (status == STATION_GOT_IP) {
+    MQTT_Connect(&mqttClient);
+  } else {
+    MQTT_Disconnect(&mqttClient);
   }
 }
 
-/*
-// Declare the number of pins
-const int NUM_PINS = 7;
+static void ICACHE_FLASH_ATTR mqttPublishedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  Serial.println("MQTT: Published");
+}
 
-// Declare the array of PinInfo objects globally
-// Pins used to control relays
-//const int relay1 = 5;  // D1
-//const int relay2 = 4;  // D2
-//const int relay3 = 0;  // D3
-//const int relay4 = 2;  // D4
-PinInfo pinArray[NUM_PINS] = {
-  PinInfo("relay1", 5, OUTPUT, true),
-  PinInfo("relay2", 4, OUTPUT, true),
-  PinInfo("relay3", 0, OUTPUT, true),
-  PinInfo("relay4", 2, OUTPUT, true),
-  PinInfo("Pin12", 12, OUTPUT, true),
-  PinInfo("Pin13", 13, OUTPUT, true),
-  PinInfo("Pin16", 16, OUTPUT, true)
-};
-*/
+void mqqtClientSetup() {
+  //MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
+  uint8_t ipAddress[] = {192, 168, 4, 1};
+  Serial.println("Initiating MQTT connetion");
+  MQTT_InitConnection(&mqttClient, ipAddress, 1880, 0);
+  Serial.println("Initiated MQTT connetion");
 
-// Global Variables
-//NetDiscoverer discoverer = NetDiscoverer();
+  //uint8_t clientID[] = {192, 168, 4, 1};
+  // Define a static uint8_t array with the ASCII values of "CLIENT_1234"
+  uint8_t clientID[] = {67, 76, 73, 69, 78, 84, 95, 49, 50, 51, 52};
+  uint8_t user[] = {};
+  uint8_t pass[] = {};
+  if ( !MQTT_InitClient(&mqttClient, clientID, user, pass, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
+  {
+    Serial.println("Failed to initialize properly. Check MQTT version.\r\n");
+    return;
+  } else {
+    Serial.println("I think I connected to the MQTT broker");
+    MQTT_Publish(&mqttClient, "hello", "this is my hello", 16, 0, 0);
+  }
 
-// TODO WebServer.init()
+  uint8_t lwtArray[] = {47, 108, 119, 116};
+  uint8_t offlineArray[] = {111, 102, 102, 108, 105, 110, 101};
+  Serial.println("Init LWT");
+
+  MQTT_InitLWT(&mqttClient, lwtArray, offlineArray, 0, 0);
+  //MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
+  //MQTT_OnConnected(&mqttClient, mqttConnectedCb);
+  //MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
+  Serial.println("Setting up onpublish");
+
+  MQTT_OnPublished(&mqttClient, mqttPublishedCb);
+  //MQTT_OnData(&mqttClient, mqttDataCb);
+
+  //WIFI_Connect(ssid, password, wifiConnectCb);
+  MQTT_Publish(&mqttClient, "hello", "this is my hello", 16, 0, 0);
+
+}
+
+void mqqtClientLoop() {
+  Serial.println("publishing {\"value\":\"100\"}...");
+
+  MQTT_Publish(&mqttClient, "/beat", "{\"value\":\"100\"}", 15, 0, 0);
+}
+
+//////////////////////
+
+void setup() {
+  Serial.begin(115200);
+
+  Serial.write("MQTT SERVER/BROKER STARTING");
+
+  pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
+  pins.push(PinInfo::create("Pin2", 4, OUTPUT, true));
+  pins.push(PinInfo::create("Pin3", 0, OUTPUT, true));
+  pins.push(PinInfo::create("Pin4", 2, OUTPUT, true));
+  pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
+  pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
+  pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
+
+  if (become_access_point) {
+    startWiFiAP();
+    myBroker.init();
+    myBroker.subscribe("#");
+    myBroker.addSubscription("#", onBeat);
+  } else {
+    mqqtClientSetup();
+    initWebserver();
+  }
+}
+
+void loop() {
+  delay(500);
+  client_status();
+  if (!become_access_point) {
+    //mqqtClientLoop();
+  }
+  delay(500);
+}
+
+void client_status() {
+  // Your client status code here
+}
+
 void initWebserver() {
-  // Connect to WiFi
-  Serial.print("Connecting to WiFi network");
+  Serial.print("Connecting to WiFi network ");
   Serial.println(ssid);
-  WiFi.begin(ssid, password);  // We will connect with the entered name and password
+  WiFi.begin(ssid, password);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+
   Serial.println("");
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());  //IP address will be shown
+  Serial.println(WiFi.localIP());
 
-  // Start the webserver
   server.begin();
+  handleWebRequests();
 }
 
-// TODO WebServer.handleRequest()
 void handleWebRequests() {
-  // get client requests
-  WiFiClient client = server.available();  // Web server starts
+  WiFiClient client = server.available();
 
   if (client) {
     Serial.println("New Client.");
     String currentLine = "";
+
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();
-        //Serial.write(c);
         header += c;
         if (c == '\n') {
-
           if (currentLine.length() == 0) {
-
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-
-            //The PIN will be activated according to the received requests
-            for (int i = 0; i < pins.size(); i++) {
-              PinInfo pin = pins.get(i);
-              String pinName = pin.getName();
-              String pinNum = String(pin.getNumber());
-              if (header.indexOf("GET /" + pinName + "/on") >= 0) {
-                Serial.println("*** " + pinNum + " ON ***");
-                pin.turnOn();
-              } else if (header.indexOf("GET /" + pinName + "/off") >= 0) {
-                Serial.println("*** " + pinNum + " OFF ***");
-                pin.turnOff();
-              } else if (header.indexOf("GET /favicon.ico") >= 0) {
-                Serial.println("Ignoring Favicon");
-              } else if (header.indexOf("GET /broker") >= 0) {
-                 Serial.println("setting broker");
-                 //String brokerIP = getParameterValue(header, "ip")
-              } else {
-                Serial.println("*** Unrecognized API route ***");
-              }
-            }
-
-            // HTML Page
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<title>WebServer based Device Controller</title>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-
-            // You can customize the values ​​according to your needs
-            client.println("<style>html, body {background-color: #e0ebcd; font-family: Helvetica; display: block; color: #1336dd; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #30f040; color: black; padding: 12px 40px;");
-            client.println("text-decoration: none; font-size: 20px; margin: auto; cursor: pointer;}");
-            client.println(".button2 {background-color: red; color: black; padding: 12px 40px;}");
-            client.println(".textbox {width: 80px; padding: 16px 20px 0px 24px; background-image: linear-gradient(180deg, #fff, #ddd 40%, #ccc);}");
-            client.println(".mytext {font-size: 16px; font-weight:bold; font-family:Arial ; text-align: center;}");
-            client.println(".headertext{ font-weight:bold; font-family:Arial ; text-align: center; color: brown ;}");
-            client.println("#container {width: 100%; height: 100%; margin-left: 5px; margin-top: 20px; padding: 10px; display: -webkit-flex; -webkit-justify-content: center; display: flex; justify-content: center;} ");
-            client.println("</style></head>");
-            client.println("<body><h1><u><div class = \"headertext\"> WebServer based Device Controller</u></h1>");
-
-            // The elements inside the web page are defined
-            for (int i = 0; i < pins.size(); i++) {
-              client.println("<div id=\"container\">");
-              int deviceNum = i + 1;
-              client.print("<p><div class=\"textbox mytext\">DEVICE ");
-              client.print(deviceNum);
-              client.println("</div>");
-
-              PinInfo pin = pins.get(i);
-              String pinName = pin.getName();
-              boolean pinIsOn = pin.isOn();
-
-              if (pinIsOn) {
-                client.print("<a href=\"/");
-                client.print(pinName);
-                client.println("/on\"><button class=\"button\">TURN ON</button></a></p>");
-              } else {
-                client.print("<a href=\"/");
-                client.print(pinName);
-                client.println("/off\"><button class=\"button button2\">TURN OFF</button></a></p>");
-              }
-
-              client.println("</div>");
-            }
-
-            client.println("</body></html>");
-
-            client.println();
-
+            handleAPIRequests();
+            handleHTMLPage();
             break;
           } else {
             currentLine = "";
@@ -464,156 +823,163 @@ void handleWebRequests() {
     }
 
     header = "";
-
     client.stop();
     Serial.println("Client disconnected.");
     Serial.println("");
   }
 }
 
-void setup() {
-  // this board's serial speed???
-  Serial.begin(115200);
-
-  //initWebserver();
-
-  // Initialize the PinInfo objects
-  pins.push(PinInfo::create("Pin1", 5, OUTPUT, true));
-  pins.push(PinInfo::create("Pin2", 4, OUTPUT, true));
-  pins.push(PinInfo::create("Pin3", 0, OUTPUT, true));
-  pins.push(PinInfo::create("Pin4", 2, OUTPUT, true));
-  pins.push(PinInfo::create("Pin12", 12, OUTPUT, true));
-  pins.push(PinInfo::create("Pin13", 13, OUTPUT, true));
-  pins.push(PinInfo::create("Pin16", 16, OUTPUT, true));
-
-  // initiate discovery of devices
-  //discoverer.initDiscoveryListening(); //TODO delete this line
-  if (become_access_point) {
-     startWiFiAP();
-  } else {
-     initWebserver();
-  }
-  myBroker.init();
-  myBroker.subscribe("#");
-}
-
-void loop() {
-    // led
-  //pinMode(led14, OUTPUT);
-  // led
-  //analogWrite(led14, 20);
-
-  //handleWebRequests();
-
-  delay(5000);
-  client_status();
-  delay(4000);
-  
-  // // white
-  // Serial.println("white");
-  // pins.get(0).turnOn();
-  // pins.get(1).turnOn();
-  // pins.get(2).turnOn();
-  // delay(1000);
-
-  // // off
-  // Serial.println("off");
-  // pins.get(0).turnOff();
-  // pins.get(1).turnOff();
-  // pins.get(2).turnOff();
-  // delay(1000);
-
-  // //blue
-  // Serial.println("blue");
-  // pins.get(0).turnOff();
-  // pins.get(1).turnOff();
-  // pins.get(2).turnOn();
-  // delay(1000);
-
-  // // red
-  // Serial.println("red");
-  // pins.get(0).turnOn();
-  // pins.get(1).turnOff();
-  // pins.get(2).turnOff();
-  // delay(1000);
-
-  // // green
-  // Serial.println("blue");
-  // pins.get(0).turnOff();
-  // pins.get(1).turnOn();
-  // pins.get(2).turnOff();
-  // delay(1000);
-}
-
-
-
-void client_status() {
-  unsigned char number_client;
-  struct station_info *stat_info;
-  
-  struct ip_addr *IPaddress;
-  IPAddress address;
-  int i=1;
-  
-  number_client= wifi_softap_get_station_num();
-  stat_info = wifi_softap_get_station_info();
-  
-  Serial.print(" Total Connected Clients are = ");
-  Serial.println(number_client);
-  
-    while (stat_info != NULL) {
-      //Serial.print(" IP adress is = ");
-      //Serial.print(&stat_info->ip);
-      //Serial.print("end ip");
-      IPaddress = (struct ip_addr*)&stat_info->ip;
-      address = IPaddress->addr;
-      
-      Serial.print("client= ");
-      
-      Serial.print(i);
-      Serial.print(" IP adress is = ");
-      Serial.print((address));
-      Serial.print(" with MAC adress is = ");
-      Serial.print(stat_info->bssid[0],HEX);
-      Serial.print(" ");
-      Serial.print(stat_info->bssid[1],HEX);
-      Serial.print(" ");
-      Serial.print(stat_info->bssid[2],HEX);
-      Serial.print(" ");
-      Serial.print(stat_info->bssid[3],HEX);
-      Serial.print(" ");
-      Serial.print(stat_info->bssid[4],HEX);
-      Serial.print(" ");
-      Serial.print(stat_info->bssid[5],HEX);
-      Serial.print(" ");
-
-      stat_info = STAILQ_NEXT(stat_info, next);
-      i++;
-      Serial.println();
-
-      /*
-      IPaddress = &stat_info->ip;
-      address = IPaddress->addr;
-      
-      Serial.print("client= ");
-      
-      Serial.print(i);
-      Serial.print(" IP adress is = ");
-      Serial.print((address));
-      Serial.print(" with MAC adress is = ");
-      
-      Serial.print(stat_info->bssid[0],HEX);Serial.print(" ");
-      Serial.print(stat_info->bssid[1],HEX);Serial.print(" ");
-      Serial.print(stat_info->bssid[2],HEX);Serial.print(" ");
-      Serial.print(stat_info->bssid[3],HEX);Serial.print(" ");
-      Serial.print(stat_info->bssid[4],HEX);Serial.print(" ");
-      Serial.print(stat_info->bssid[5],HEX);Serial.print(" ");
-      
-      stat_info = STAILQ_NEXT(stat_info, next);
-      i++;
-      Serial.println();
-      */
+void handleAPIRequests() {
+  for (int i = 0; i < pins.size(); i++) {
+    PinInfo pin = pins.get(i);
+    String pinName = pin.getName();
+    if (header.indexOf("GET /" + pinName + "/on") >= 0) {
+      Serial.println("*** " + pinName + " ON ***");
+      pin.turnOn();
+    } else if (header.indexOf("GET /" + pinName + "/off") >= 0) {
+      Serial.println("*** " + pinName + " OFF ***");
+      pin.turnOff();
+    } else if (header.indexOf("GET /favicon.ico") >= 0) {
+      Serial.println("Ignoring Favicon");
+    } else if (header.indexOf("GET /broker") >= 0) {
+      Serial.println("setting broker");
+    } else {
+      Serial.println("*** Unrecognized API route ***");
     }
-    
-  delay(500);
+  }
 }
+
+void handleHTMLPage() {
+  // Your HTML page handling code here
+}
+
+
+
+////////// MQTT CLIENT /////////////
+
+/*DEFAULT CONFIGURATIONS*/
+
+//#define MQTT_HOST     "192.168.0.101" //or "mqtt.yourdomain.com"
+//#define MQTT_PORT     1883
+//#define MQTT_BUF_SIZE   1024
+
+
+//#define MQTT_CLIENT_ID    "CLIENT_1234"
+//#define MQTT_USER     "USER"
+//#define MQTT_PASS     "PASS"
+
+//#define MQTT_KEEPALIVE 120
+
+//#define STA_SSID "SSID"
+//#define STA_PASS "PASS"
+
+//#define MQTT_RECONNECT_TIMEOUT  5 /*second*/
+
+//#define DEFAULT_SECURITY  0
+//#define QUEUE_BUFFER_SIZE       2048
+
+
+
+/*
+#include "ets_sys.h"
+//#include "driver/uart.h"
+#include "osapi.h"
+#include "mqtt.h"
+#include "wifi.h"
+#include "debug.h"
+#include "gpio.h"
+#include "user_interface.h"
+#include "mem.h"
+
+static void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
+{
+  if (status == STATION_GOT_IP) {
+    MQTT_Connect(&mqttClient);
+  } else {
+    MQTT_Disconnect(&mqttClient);
+  }
+}
+static void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Connected\r\n");
+  MQTT_Subscribe(client, "/mqtt/topic/0", 0);
+  MQTT_Subscribe(client, "/mqtt/topic/1", 1);
+  MQTT_Subscribe(client, "/mqtt/topic/2", 2);
+
+  MQTT_Publish(client, "/mqtt/topic/0", "hello0", 6, 0, 0);
+  MQTT_Publish(client, "/mqtt/topic/1", "hello1", 6, 1, 0);
+  MQTT_Publish(client, "/mqtt/topic/2", "hello2", 6, 2, 0);
+
+}
+
+static void ICACHE_FLASH_ATTR mqttDisconnectedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Disconnected\r\n");
+}
+
+static void ICACHE_FLASH_ATTR mqttPublishedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Published\r\n");
+}
+
+static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
+{
+  char *topicBuf = (char*)os_zalloc(topic_len + 1),
+        *dataBuf = (char*)os_zalloc(data_len + 1);
+
+  MQTT_Client* client = (MQTT_Client*)args;
+  os_memcpy(topicBuf, topic, topic_len);
+  topicBuf[topic_len] = 0;
+  os_memcpy(dataBuf, data, data_len);
+  dataBuf[data_len] = 0;
+  INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
+  os_free(topicBuf);
+  os_free(dataBuf);
+}
+
+void ICACHE_FLASH_ATTR print_info()
+{
+  INFO("\r\n\r\n[INFO] BOOTUP...\r\n");
+  INFO("[INFO] SDK: %s\r\n", system_get_sdk_version());
+  INFO("[INFO] Chip ID: %08X\r\n", system_get_chip_id());
+  INFO("[INFO] Memory info:\r\n");
+  system_print_meminfo();
+
+  INFO("[INFO] -------------------------------------------\n");
+  INFO("[INFO] Build time: %s\n", BUID_TIME);
+  INFO("[INFO] -------------------------------------------\n");
+
+}
+
+
+static void ICACHE_FLASH_ATTR app_init(void)
+{
+  uart_init(BIT_RATE_115200, BIT_RATE_115200);
+  print_info();
+  MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
+  //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
+
+  if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
+  {
+    INFO("Failed to initialize properly. Check MQTT version.\r\n");
+    return;
+  }
+  //MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1);
+  MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
+  MQTT_OnConnected(&mqttClient, mqttConnectedCb);
+  MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
+  MQTT_OnPublished(&mqttClient, mqttPublishedCb);
+  MQTT_OnData(&mqttClient, mqttDataCb);
+
+  WIFI_Connect(STA_SSID, STA_PASS, wifiConnectCb);
+}
+void user_init(void)
+{
+  system_init_done_cb(app_init);
+}
+*/
+
+#endif // BE_SERVER

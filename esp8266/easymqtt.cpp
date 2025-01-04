@@ -1,5 +1,6 @@
 // uMQTTBroker.cpp
 #include "easymqtt.h"
+#include "PinInfo.h"
 
 bool myMQTTBroker::onConnect(IPAddress addr, uint16_t client_count) {
     Serial.println(addr.toString() + " connected");
@@ -25,15 +26,17 @@ void myMQTTBroker::onData(String topic, const char *data, uint32_t length) {
     // printClients();
 
     if (topic == "beat") {
-        if (dataString == "kick") {
-            Serial.println("blue");
-            pins.get(0).turnOff();
-            pins.get(1).turnOff();
-            pins.get(2).turnOn();
-            delay(1000);
-            pins.get(2).turnOff();
+        // for now just call them all
+        for (const auto &callback : topicCallbacks) {
+          Serial.println("calling callback for topic beat with data kick");
+          callback(topic, data);
         }
     }
+}
+
+void myMQTTBroker::addSubscription(String topic, std::function<void(String, String)> callback) {
+    Serial.println("adding new subscription");
+    topicCallbacks.push_back(callback);
 }
 
 void myMQTTBroker::printClients() {
